@@ -1316,39 +1316,7 @@ document.querySelectorAll('nav.tabbar button').forEach(b=>{
 });
 
 // ---------- INIT ----------
-(async 
-async function downloadFromDrive(){
-  if(!accessToken){status("Primero conectá Google");return;}
-  const b=document.getElementById("btnDriveDownload");
-  b.disabled=true; status("Bajando de Drive...");
-  try{
-    const id=await findFile();
-    if(!id) throw new Error("No encuentro PitTyreData.json en Drive");
-    const r=await gf("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+"?alt=media");
-    if(!r.ok) throw new Error("No pude descargar el JSON");
-    const d=await r.json();
-    if(d.schema!=="pit-tyre-check-sync-v1") throw new Error("JSON no válido");
-
-    if(d.inventory){
-      if(d.inventory["37"]!==undefined) localStorage.setItem("inventory-37",JSON.stringify(d.inventory["37"]));
-      if(d.inventory["85"]!==undefined) localStorage.setItem("inventory-85",JSON.stringify(d.inventory["85"]));
-    }
-    if(d.plans){
-      if(d.plans["37"]!==undefined) localStorage.setItem("plan-37",JSON.stringify(d.plans["37"]));
-      if(d.plans["85"]!==undefined) localStorage.setItem("plan-85",JSON.stringify(d.plans["85"]));
-    }
-    if(d.history!==undefined) localStorage.setItem("scan-log",JSON.stringify(d.history));
-
-    localStorage.setItem("pit-last-drive-download",new Date().toISOString());
-    status("Drive → App OK ✔ Recargando...",true);
-    setTimeout(()=>location.reload(),700);
-  }catch(e){
-    console.error(e); status("ERROR: "+e.message);
-    b.disabled=false;
-  }
-}
-
-function init(){
+(async function init(){
   document.getElementById('headerSub').textContent = 'Cargando datos...';
   await loadAll();
   renderTab();
