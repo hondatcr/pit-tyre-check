@@ -1393,18 +1393,11 @@ document.querySelectorAll('nav.tabbar button').forEach(b=>{
 <script>
 (function(){
 const CLIENT_ID="550070179587-7ef0jobb4ok4fm4vuvem92sc9h71anpe.apps.googleusercontent.com";
-const SCOPES="https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email";
+const SCOPES="https://www.googleapis.com/auth/drive.file";
 const SYNC_FILE="PitTyreData.json";
 let tokenClient=null, accessToken=null, pendingSync=false, fileId=localStorage.getItem("pit-drive-file-id")||"";
 function status(m,g){const e=document.getElementById("driveSyncStatus");if(e){e.textContent=m;e.style.color=g?"#86efac":"#9ca3af";}}
-async function getGoogleEmail(){
-  try{
-    const r = await fetch("https://www.googleapis.com/oauth2/v3/userinfo",{headers:{Authorization:"Bearer "+accessToken}});
-    if(!r.ok) return "";
-    const j = await r.json();
-    return j.email || "";
-  }catch(e){ return ""; }
-}
+
 
 function getLS(k,f){try{const v=localStorage.getItem(k);return v?JSON.parse(v):f;}catch(e){return f;}}
 function payload(){return {schema:"pit-tyre-check-sync-v1",generated_at:new Date().toISOString(),source:"Pit Tyre Check v2.0 Drive",inventory:{"37":getLS("inventory-37",[]),"85":getLS("inventory-85",[])},plans:{"37":getLS("plan-37",{}),"85":getLS("plan-85",{})},history:getLS("scan-log",[])};}
@@ -1447,79 +1440,23 @@ async function readRemote(id){
 async function syncNow(){
   if(!accessToken){status("Primero conectá Google");return;}
   const btn=document.getElementById("btnDriveSync");
-  btn.disabled=true; status("Comparando cambios...");
+  btn.disabled=true; status("Leyendo Drive...");
   try{
     const id=await findFile();
     if(!id){
-      const d=payload();
-      await createFile(d);
-      localStorage.setItem("pit-last-remote-stamp",d.generated_at);
-      localStorage.removeItem("pit-local-dirty-at");
-      status("Primera sincronización subida ✔",true);
+      status("ERROR: No encontré PitTyreData.json en Drive");
       return;
     }
-
     const remote=await readRemote(id);
     if(remote.schema!=="pit-tyre-check-sync-v1") throw new Error("JSON de Drive no válido");
 
-    const remoteStamp=remote.generated_at||"";
-    const lastStamp=localStorage.getItem("pit-last-remote-stamp")||"";
-    const dirty=localStorage.getItem("pit-local-dirty-at")||"";
-    const local=comparableLocal();
-
-    // Primera vez con esta versión: si ya están iguales, sólo crea la referencia.
-    if(!lastStamp){
-      if(sameData(local,remote)){
-        localStorage.setItem("pit-last-remote-stamp",remoteStamp);
-        localStorage.removeItem("pit-local-dirty-at");
-        status("Sincronizado ✔",true);
-      }else if(!dirty){
-        applyRemote(remote);
-        localStorage.setItem("pit-last-remote-stamp",remoteStamp);
-        localStorage.removeItem("pit-local-dirty-at");
-        status("Drive → App ✔",true);
-        setTimeout(()=>location.reload(),600);
-      }else{
-        status("⚠ Cambios distintos en App y Drive. No se pisó nada.");
-      }
-      return;
-    }
-
-    const remoteChanged = remoteStamp !== lastStamp;
-    const localChanged = !!dirty;
-
-    if(!localChanged){
-      if(sameData(local,remote)){
-        localStorage.setItem("pit-last-remote-stamp",remoteStamp);
-        localStorage.removeItem("pit-local-dirty-at");
-        status("Ya está sincronizado ✔",true);
-      }else{
-        applyRemote(remote);
-        localStorage.setItem("pit-last-remote-stamp",remoteStamp);
-        localStorage.removeItem("pit-local-dirty-at");
-        status("Drive → App ✔",true);
-        setTimeout(()=>location.reload(),600);
-      }
-      return;
-    }
-
-    if(!remoteChanged && localChanged){
-      const d=payload();
-      await updateFile(id,d);
-      localStorage.setItem("pit-last-remote-stamp",d.generated_at);
-      localStorage.removeItem("pit-local-dirty-at");
-      status("App → Drive ✔",true);
-      return;
-    }
-
-    // Ambos cambiaron desde la última sincronización.
-    if(sameData(local,remote)){
-      localStorage.setItem("pit-last-remote-stamp",remoteStamp);
-      localStorage.removeItem("pit-local-dirty-at");
-      status("Sincronizado ✔",true);
-    }else{
-      status("⚠ CONFLICTO: cambiaron App y Excel. No se pisó nada.");
-    }
+    // Al pulsar SYNC manualmente, Drive es la fuente maestra.
+    // Esto elimina estados locales viejos del ADMIN (especialmente en iPhone/PWA).
+    applyRemote(remote);
+    localStorage.setItem("pit-last-remote-stamp",remote.generated_at||"");
+    localStorage.removeItem("pit-local-dirty-at");
+    status("Drive → App ✔",true);
+    setTimeout(()=>location.reload(),600);
   }catch(e){
     console.error(e);
     status("ERROR: "+e.message);
@@ -1527,7 +1464,6 @@ async function syncNow(){
     btn.disabled=false;
   }
 }
-
 function initGoogle(){
   if(!(window.google && google.accounts && google.accounts.oauth2)){
     setTimeout(initGoogle,300);
@@ -1545,14 +1481,7 @@ function initGoogle(){
         return;
       }
       accessToken = resp.access_token;
-      const email = await getGoogleEmail();
-      if(email){
-        status("Google: "+email, true);
-        alert("Cuenta Google usada por ADMIN:\n\n"+email);
-      }else{
-        status("Google conectado ✔", true);
-        alert("Google conectado, pero no pude leer el email de la cuenta.");
-      }
+      status("Google conectado ✔", true);
       if(pendingSync){
         pendingSync=false;
         await syncNow();
@@ -1578,7 +1507,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     }
     pendingSync=true;
     status("Conectando con Google...");
-    tokenClient.requestAccessToken({prompt:"select_account", login_hint:"hondatcr@gmail.com"});
+    tokenClient.requestAccessToken({prompt:"", login_hint:"hondatcr@gmail.com"});
   };
   initGoogle();
 });
