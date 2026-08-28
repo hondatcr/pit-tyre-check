@@ -334,6 +334,9 @@ async function storeSet(key, value, shared){
     } else {
       localStorage.setItem(key, json);
     }
+    if(['inventory-37','inventory-85','plan-37','plan-85','scan-log'].includes(key)){
+      localStorage.setItem('pit-local-dirty-at', new Date().toISOString());
+    }
     return true;
   }catch(e){
     console.error('storage set failed', key, e);
@@ -1326,10 +1329,9 @@ document.querySelectorAll('nav.tabbar button').forEach(b=>{
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <div id="driveSyncPanel" style="position:fixed;right:10px;bottom:76px;z-index:9999;background:#111827;border:1px solid #374151;border-radius:12px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.35);font-family:system-ui;color:#fff;width:220px">
-<div style="font-weight:800;font-size:13px;margin-bottom:7px">☁️ GOOGLE DRIVE</div>
+<div style="font-weight:800;font-size:13px;margin-bottom:7px">☁️ SYNC GOOGLE DRIVE</div>
 <button id="btnDriveConnect" style="width:100%;padding:9px;border:0;border-radius:8px;font-weight:800;cursor:pointer;margin-bottom:6px">Conectar Google</button>
-<button id="btnDriveSync" disabled style="width:100%;padding:9px;border:0;border-radius:8px;font-weight:800;cursor:pointer">🔄 Sincronizar</button>
-<button id="btnDriveDownload" disabled style="width:100%;padding:9px;border:0;border-radius:8px;font-weight:800;cursor:pointer;margin-top:6px">⬇️ Bajar de Drive</button>
+<button id="btnDriveSync" disabled style="width:100%;padding:9px;border:0;border-radius:8px;font-weight:800;cursor:pointer">🔄 SINCRONIZAR</button>
 <div id="driveSyncStatus" style="font-size:11px;color:#9ca3af;margin-top:7px">No conectado</div>
 </div>
 <script>
@@ -1345,41 +1347,119 @@ async function gf(u,o={}){o.headers=Object.assign({},o.headers||{},{Authorizatio
 async function findFile(){if(fileId)return fileId;const q=encodeURIComponent("name='"+SYNC_FILE+"' and trashed=false");const r=await gf("https://www.googleapis.com/drive/v3/files?q="+q+"&spaces=drive&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&pageSize=10");if(!r.ok)throw new Error("No pude buscar el JSON");const j=await r.json();if(j.files&&j.files.length){fileId=j.files[0].id;localStorage.setItem("pit-drive-file-id",fileId);return fileId;}return "";}
 async function createFile(d){const b="pittyre_"+Date.now(),meta=JSON.stringify({name:SYNC_FILE,mimeType:"application/json"}),body="--"+b+"\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"+meta+"\r\n--"+b+"\r\nContent-Type: application/json\r\n\r\n"+JSON.stringify(d,null,2)+"\r\n--"+b+"--";const r=await gf("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",{method:"POST",headers:{"Content-Type":"multipart/related; boundary="+b},body});if(!r.ok)throw new Error("No pude crear el JSON");const j=await r.json();fileId=j.id;localStorage.setItem("pit-drive-file-id",fileId);}
 async function updateFile(id,d){const r=await gf("https://www.googleapis.com/upload/drive/v3/files/"+encodeURIComponent(id)+"?uploadType=media",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(d,null,2)});if(!r.ok)throw new Error("No pude actualizar el JSON");}
-async function syncNow(){if(!accessToken){status("Primero conectá Google");return;}const b=document.getElementById("btnDriveSync");b.disabled=true;status("Sincronizando...");try{const d=payload(),id=await findFile();if(id)await updateFile(id,d);else await createFile(d);status("Sincronizado ✔ "+new Date().toLocaleTimeString(),true);}catch(e){console.error(e);status("ERROR: "+e.message);}finally{b.disabled=false;}}
-
-async function downloadFromDrive(){
+function comparableLocal(){
+  return {
+    inventory:{"37":getLS("inventory-37",[]),"85":getLS("inventory-85",[])},
+    plans:{"37":getLS("plan-37",{}),"85":getLS("plan-85",{})},
+    history:getLS("scan-log",[])
+  };
+}
+function sameData(a,b){
+  try{
+    return JSON.stringify(a)===JSON.stringify({
+      inventory:b.inventory||{"37":[],"85":[]},
+      plans:b.plans||{"37":{},"85":{}},
+      history:b.history||[]
+    });
+  }catch(e){ return false; }
+}
+function applyRemote(d){
+  if(d.inventory){
+    if(d.inventory["37"]!==undefined) localStorage.setItem("inventory-37",JSON.stringify(d.inventory["37"]));
+    if(d.inventory["85"]!==undefined) localStorage.setItem("inventory-85",JSON.stringify(d.inventory["85"]));
+  }
+  if(d.plans){
+    if(d.plans["37"]!==undefined) localStorage.setItem("plan-37",JSON.stringify(d.plans["37"]));
+    if(d.plans["85"]!==undefined) localStorage.setItem("plan-85",JSON.stringify(d.plans["85"]));
+  }
+  if(d.history!==undefined) localStorage.setItem("scan-log",JSON.stringify(d.history));
+}
+async function readRemote(id){
+  const r=await gf("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+"?alt=media");
+  if(!r.ok) throw new Error("No pude leer PitTyreData.json");
+  return await r.json();
+}
+async function syncNow(){
   if(!accessToken){status("Primero conectá Google");return;}
-  const b=document.getElementById("btnDriveDownload");
-  b.disabled=true; status("Bajando de Drive...");
+  const btn=document.getElementById("btnDriveSync");
+  btn.disabled=true; status("Comparando cambios...");
   try{
     const id=await findFile();
-    if(!id) throw new Error("No encuentro PitTyreData.json en Drive");
-    const r=await gf("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+"?alt=media");
-    if(!r.ok) throw new Error("No pude descargar el JSON");
-    const d=await r.json();
-    if(d.schema!=="pit-tyre-check-sync-v1") throw new Error("JSON no válido");
-
-    if(d.inventory){
-      if(d.inventory["37"]!==undefined) localStorage.setItem("inventory-37",JSON.stringify(d.inventory["37"]));
-      if(d.inventory["85"]!==undefined) localStorage.setItem("inventory-85",JSON.stringify(d.inventory["85"]));
+    if(!id){
+      const d=payload();
+      await createFile(d);
+      localStorage.setItem("pit-last-remote-stamp",d.generated_at);
+      localStorage.removeItem("pit-local-dirty-at");
+      status("Primera sincronización subida ✔",true);
+      return;
     }
-    if(d.plans){
-      if(d.plans["37"]!==undefined) localStorage.setItem("plan-37",JSON.stringify(d.plans["37"]));
-      if(d.plans["85"]!==undefined) localStorage.setItem("plan-85",JSON.stringify(d.plans["85"]));
-    }
-    if(d.history!==undefined) localStorage.setItem("scan-log",JSON.stringify(d.history));
 
-    localStorage.setItem("pit-last-drive-download",new Date().toISOString());
-    status("Drive → App OK ✔ Recargando...",true);
-    setTimeout(()=>location.reload(),700);
+    const remote=await readRemote(id);
+    if(remote.schema!=="pit-tyre-check-sync-v1") throw new Error("JSON de Drive no válido");
+
+    const remoteStamp=remote.generated_at||"";
+    const lastStamp=localStorage.getItem("pit-last-remote-stamp")||"";
+    const dirty=localStorage.getItem("pit-local-dirty-at")||"";
+    const local=comparableLocal();
+
+    // Primera vez con esta versión: si ya están iguales, sólo crea la referencia.
+    if(!lastStamp){
+      if(sameData(local,remote)){
+        localStorage.setItem("pit-last-remote-stamp",remoteStamp);
+        localStorage.removeItem("pit-local-dirty-at");
+        status("Sincronizado ✔",true);
+      }else if(!dirty){
+        applyRemote(remote);
+        localStorage.setItem("pit-last-remote-stamp",remoteStamp);
+        localStorage.removeItem("pit-local-dirty-at");
+        status("Drive → App ✔",true);
+        setTimeout(()=>location.reload(),600);
+      }else{
+        status("⚠ Cambios distintos en App y Drive. No se pisó nada.");
+      }
+      return;
+    }
+
+    const remoteChanged = remoteStamp !== lastStamp;
+    const localChanged = !!dirty;
+
+    if(!remoteChanged && !localChanged){
+      status("Ya está sincronizado ✔",true);
+      return;
+    }
+
+    if(remoteChanged && !localChanged){
+      applyRemote(remote);
+      localStorage.setItem("pit-last-remote-stamp",remoteStamp);
+      localStorage.removeItem("pit-local-dirty-at");
+      status("Drive → App ✔",true);
+      setTimeout(()=>location.reload(),600);
+      return;
+    }
+
+    if(!remoteChanged && localChanged){
+      const d=payload();
+      await updateFile(id,d);
+      localStorage.setItem("pit-last-remote-stamp",d.generated_at);
+      localStorage.removeItem("pit-local-dirty-at");
+      status("App → Drive ✔",true);
+      return;
+    }
+
+    // Ambos cambiaron desde la última sincronización.
+    if(sameData(local,remote)){
+      localStorage.setItem("pit-last-remote-stamp",remoteStamp);
+      localStorage.removeItem("pit-local-dirty-at");
+      status("Sincronizado ✔",true);
+    }else{
+      status("⚠ CONFLICTO: cambiaron App y Excel. No se pisó nada.");
+    }
   }catch(e){
-    console.error(e); status("ERROR: "+e.message);
-    b.disabled=false;
+    console.error(e);
+    status("ERROR: "+e.message);
+  }finally{
+    btn.disabled=false;
   }
-}
-
-function init(){if(!(window.google&&google.accounts&&google.accounts.oauth2)){setTimeout(init,300);return;}tokenClient=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SCOPES,callback:r=>{if(r.error){status("Google: "+r.error);return;}accessToken=r.access_token;document.getElementById("btnDriveSync").disabled=false;document.getElementById("btnDriveDownload").disabled=false;document.getElementById("btnDriveConnect").textContent="Google conectado ✔";status("Conectado. Listo para sincronizar.",true);}});}
-document.addEventListener("DOMContentLoaded",()=>{document.getElementById("btnDriveConnect").onclick=()=>tokenClient?tokenClient.requestAccessToken({prompt:accessToken?"":"consent"}):status("Cargando Google...");document.getElementById("btnDriveSync").onclick=syncNow;document.getElementById("btnDriveDownload").onclick=downloadFromDrive;init();});
 })();
 </script>
 
