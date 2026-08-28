@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0A0C0F">
+<title>Pit Tyre Check TEAM</title>
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{--bg:#0A0C0F;--surface:#14171C;--surface2:#1C2027;--border:#2A2F38;--text:#F2F3F1;--dim:#8B93A1;--amber:#FFB300;--green:#25D673;--red:#FF4D4D}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif;min-height:100%}
+body{padding-bottom:78px;-webkit-tap-highlight-color:transparent}
+header{position:sticky;top:0;z-index:20;background:rgba(10,12,15,.98);border-bottom:1px solid var(--border);padding:12px 14px}
+.brand{display:flex;align-items:center;gap:10px}.stripe{width:6px;height:30px;background:var(--amber);border-radius:2px}
+h1{font-size:18px;margin:0}.sub{font-size:11px;color:var(--dim);margin-top:3px}
+.syncline{display:flex;align-items:center;gap:7px;margin-top:8px;font-size:11px;color:var(--dim)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--amber);flex:0 0 auto}.dot.ok{background:var(--green)}.dot.bad{background:var(--red)}
+.authbtn{display:none;margin-left:auto;background:var(--amber);border:0;border-radius:8px;padding:7px 10px;font-weight:bold;font-size:11px}
+main{max-width:650px;margin:auto;padding:14px}.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:15px;margin-bottom:12px}
+.card h2{margin:0 0 12px;color:var(--dim);font-size:12px;text-transform:uppercase;letter-spacing:1px}
+.row{display:flex;gap:8px}.field{flex:1}label{display:block;color:var(--dim);font-size:11px;text-transform:uppercase;margin-bottom:6px}
+select,input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:12px;font-size:16px}
+.pos-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.pos-btn{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;font-weight:bold}
+.pos-btn.active{border-color:var(--amber);color:var(--amber)}
+.btn{width:100%;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:bold;background:var(--amber);color:#171100}
+.btn.secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.result{text-align:center;padding:20px 12px;border-radius:14px;border:1px solid var(--border);margin-bottom:12px}
+.result.ok{background:#0E3A22;border-color:var(--green)}.result.bad{background:#3A1414;border-color:var(--red)}.result.warn{background:var(--surface2);border-color:var(--amber)}
+.verdict{font-size:25px;font-weight:800}.ok .verdict{color:var(--green)}.bad .verdict{color:var(--red)}.warn .verdict{color:var(--amber)}
+.detail{font-size:13px;color:var(--dim);margin-top:5px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:12px}
+.stat{background:rgba(255,255,255,.05);padding:9px 5px;border-radius:9px}.val{font-weight:bold;font-size:17px}.lbl{font-size:9px;color:var(--dim);text-transform:uppercase;margin-top:3px}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);display:flex;z-index:30;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;border:0;color:var(--dim);padding:13px;font-weight:bold;font-size:13px}nav button.active{color:var(--amber)}
+.log{padding:10px 0;border-bottom:1px solid var(--border)}.log:last-child{border:0}.meta{color:var(--dim);font-size:11px;margin-top:4px}
+.oktxt{color:var(--green);font-weight:bold}.badtxt{color:var(--red);font-weight:bold}.warntxt{color:var(--amber);font-weight:bold}.status{font-size:11px;color:var(--dim);text-align:center;padding:3px}
+.scan-overlay{position:fixed;inset:0;background:#000;z-index:100;display:flex;flex-direction:column}.scan-overlay video{flex:1;width:100%;object-fit:cover}
+.scan-frame{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:78%;max-width:340px;aspect-ratio:2/1;border:3px solid var(--amber);border-radius:14px;box-shadow:0 0 0 2000px rgba(0,0,0,.45)}
+.scan-top{position:absolute;top:0;left:0;right:0;padding:16px;display:flex;justify-content:space-between;z-index:2;color:white}
+.close{width:40px;height:40px;border:0;border-radius:50%;background:rgba(255,255,255,.15);color:white;font-size:18px}
+.scan-hint{position:absolute;left:0;right:0;bottom:100px;text-align:center;color:white;z-index:2}
+.manual{position:absolute;left:0;right:0;bottom:0;padding:14px;display:flex;gap:7px;background:rgba(0,0,0,.8);z-index:2}.manual input{flex:1}.manual button{background:var(--amber);border:0;border-radius:9px;padding:0 18px;font-weight:bold}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><div class="stripe"></div><div><h1>Pit Tyre Check · TEAM</h1><div class="sub">CHECK TYRES + HISTORIAL</div></div></div>
+  <div class="syncline"><span id="syncDot" class="dot"></span><span id="syncText">Preparando sincronización…</span><button id="authBtn" class="authbtn">ACTIVAR GOOGLE</button></div>
+</header>
+<main id="main"></main>
+<nav><button data-tab="scan" class="active">✓ CHECK TYRES</button><button data-tab="history">🕘 HISTORIAL</button></nav>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+const CLIENT_ID="550070179587-7ef0jobb4ok4fm4vuvem92sc9h71anpe.apps.googleusercontent.com";
+const SCOPES="https://www.googleapis.com/auth/drive.file";
+const SYNC_FILE="PitTyreData.json";
+const FALLBACK={"schema":"pit-tyre-check-sync-v1","generated_at":"","inventory":{"37":[{"set":1,"code":"4958448","own_code":"37-2-5","type":"SLICK","condition":"USED","side":"LEFT","pre_race_bar":10.9},{"set":2,"code":"4961480","own_code":"37-2-6","type":"SLICK","condition":"USED","side":"RIGHT","pre_race_bar":10.9},{"set":3,"code":"4953691","own_code":"37-2-7","type":"SLICK","condition":"USED","side":"LEFT","pre_race_bar":31.6},{"set":4,"code":"4961242","own_code":"37-2-8","type":"SLICK","condition":"USED","side":"RIGHT","pre_race_bar":31.6},{"set":5,"code":"495xxxxx","own_code":"37-3-1","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":6,"code":"4901183","own_code":"37-3-2","type":"SLICK","condition":"NEW","side":"RIGHT","pre_race_bar":0},{"set":7,"code":"5568133","own_code":"37-3-3","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":8,"code":"5591523","own_code":"37-3-4","type":"SLICK","condition":"NEW","side":"RIGHT","pre_race_bar":0},{"set":9,"code":"5568326","own_code":"37-3-5","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":10,"code":"5591472","own_code":"37-3-6","type":"SLICK","condition":"NEW","side":"RIGHT","pre_race_bar":0},{"set":11,"code":"5591462","own_code":"37-3-7","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":12,"code":"5568446","own_code":"37-3-8","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":13,"code":"5568117","own_code":"37-3-9","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":14,"code":"5568170","own_code":"37-3-10","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":15,"code":"5591311","own_code":"37-3-11","type":"SLICK","condition":"NEW","side":"RIGHT","pre_race_bar":0},{"set":16,"code":"5568178","own_code":"37-3-12","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0}],"85":[{"set":1,"code":"4965195","own_code":"85-2-5","type":"SLICK","condition":"USED","side":"LEFT","pre_race_bar":10.9},{"set":2,"code":"4958590","own_code":"85-2-6","type":"SLICK","condition":"USED","side":"RIGHT","pre_race_bar":10.9},{"set":3,"code":"broken","own_code":"85-3-1","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":4,"code":"broken","own_code":"85-3-2","type":"SLICK","condition":"NEW","side":"RIGHT","pre_race_bar":0},{"set":5,"code":"5575645","own_code":"85-3-3","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":6,"code":"5243917","own_code":"85-3-4","type":"SLICK","condition":"NEW","side":"RIGHT","pre_race_bar":0},{"set":7,"code":"5591526","own_code":"85-3-5","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":8,"code":"5591406","own_code":"85-3-6","type":"SLICK","condition":"NEW","side":"RIGHT","pre_race_bar":0},{"set":9,"code":"5591482","own_code":"85-3-7","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":10,"code":"5577629","own_code":"85-3-8","type":"SLICK","condition":"NEW","side":"RIGHT","pre_race_bar":0},{"set":11,"code":"5591296","own_code":"85-3-9","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":12,"code":"5538840","own_code":"85-3-10","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":13,"code":"5575336","own_code":"85-3-11","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":14,"code":"5577639","own_code":"85-3-12","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":15,"code":"5577670","own_code":"85-3-13","type":"SLICK","condition":"NEW","side":"RIGHT","pre_race_bar":0},{"set":16,"code":"5538846","own_code":"85-3-14","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0}]},"plans":{"37":{"Test 1":{"FL":{"own_code":"37-3-7","start_bar":1.6},"FR":{"own_code":"37-3-8","start_bar":1.6},"RL":{"own_code":"37-3-3","start_bar":1.9},"RR":{"own_code":"37-3-4","start_bar":1.9}},"Test 2":{"FL":{"own_code":"37-3-7","start_bar":1.6},"FR":{"own_code":"37-3-8","start_bar":1.6},"RL":{"own_code":"37-3-3","start_bar":1.9},"RR":{"own_code":"37-3-4","start_bar":1.9}},"FP1":{"FL":{"own_code":"37-2-5","start_bar":1.6},"FR":{"own_code":"37-2-6","start_bar":1.6},"RL":{"own_code":"37-2-7","start_bar":1.9},"RR":{"own_code":"37-2-8","start_bar":1.9}},"FP2":{"FL":{"own_code":"37-3-1","start_bar":1.6},"FR":{"own_code":"37-3-2","start_bar":1.6},"RL":{"own_code":"37-2-7","start_bar":1.9},"RR":{"own_code":"37-2-8","start_bar":1.9}},"Q1":{"FL":{"own_code":"37-3-3","start_bar":1.6},"FR":{"own_code":"37-3-4","start_bar":1.6},"RL":{"own_code":"37-3-1","start_bar":1.9},"RR":{"own_code":"37-3-2","start_bar":1.9}},"Q2":{"FL":{"own_code":"37-3-7","start_bar":1.6},"FR":{"own_code":"37-3-8","start_bar":1.6},"RL":{"own_code":"37-3-1","start_bar":1.9},"RR":{"own_code":"37-3-2","start_bar":1.9}},"R1":{"FL":{"own_code":"37-3-7","start_bar":1.6},"FR":{"own_code":"37-3-8","start_bar":1.6},"RL":{"own_code":"37-3-3","start_bar":1.9},"RR":{"own_code":"37-3-4","start_bar":1.9}},"R2":{"FL":{"own_code":"37-3-9","start_bar":1.6},"FR":{"own_code":"37-3-10","start_bar":1.6},"RL":{"own_code":"37-3-5","start_bar":1.9},"RR":{"own_code":"37-3-6","start_bar":1.9}}},"85":{"Test 1":{"FL":{"start_bar":null,"own_code":null},"FR":{"start_bar":null,"own_code":null},"RL":{"start_bar":null,"own_code":null},"RR":{"start_bar":null,"own_code":null}},"Test 2":{"FL":{"start_bar":null,"own_code":null},"FR":{"start_bar":null,"own_code":null},"RL":{"start_bar":null,"own_code":null},"RR":{"start_bar":null,"own_code":null}},"FP1":{"FL":{"start_bar":null,"own_code":null},"FR":{"start_bar":null,"own_code":null},"RL":{"start_bar":null,"own_code":null},"RR":{"start_bar":null,"own_code":null}},"FP2":{"FL":{"start_bar":null,"own_code":null},"FR":{"start_bar":null,"own_code":null},"RL":{"start_bar":null,"own_code":null},"RR":{"start_bar":null,"own_code":null}},"Q1":{"FL":{"start_bar":null,"own_code":null},"FR":{"start_bar":null,"own_code":null},"RL":{"start_bar":null,"own_code":null},"RR":{"start_bar":null,"own_code":null}},"Q2":{"FL":{"start_bar":null,"own_code":null},"FR":{"start_bar":null,"own_code":null},"RL":{"start_bar":null,"own_code":null},"RR":{"start_bar":null,"own_code":null}},"R1":{"FL":{"start_bar":null,"own_code":null},"FR":{"start_bar":null,"own_code":null},"RL":{"start_bar":null,"own_code":null},"RR":{"start_bar":null,"own_code":null}},"R2":{"FL":{"start_bar":null,"own_code":null},"FR":{"start_bar":null,"own_code":null},"RL":{"start_bar":null,"own_code":null},"RR":{"start_bar":null,"own_code":null}}}}};
+const CARS=['37','85'], POS=['FL','FR','RL','RR'];
+const POSLAB={FL:'Del. Izq.',FR:'Del. Der.',RL:'Tras. Izq.',RR:'Tras. Der.'};
+const SESSIONS=['Test 1','Test 2','FP1','FP2','Q1','Q2','R1','R2'];
+
+let data=loadCache()||FALLBACK, tab='scan', sel={car:'37',session:'Test 1',position:'FL'}, lastResult=null;
+let history=JSON.parse(localStorage.getItem('pit-team-scan-log')||'[]');
+let tokenClient=null, accessToken=null, fileId=localStorage.getItem("pit-team-drive-file-id")||"";
+let scannerStream=null, scannerLoopId=null;
+
+function loadCache(){try{return JSON.parse(localStorage.getItem('pit-team-data-cache')||'null')}catch(e){return null}}
+function setSync(text,type='wait',showAuth=false){
+  document.getElementById('syncText').textContent=text;
+  const d=document.getElementById('syncDot'); d.className='dot'+(type==='ok'?' ok':type==='bad'?' bad':'');
+  document.getElementById('authBtn').style.display=showAuth?'block':'none';
+}
+function norm(v){return String(v??'').trim().toUpperCase()}
+function tyreByOwn(car,own){return (data?.inventory?.[car]||[]).find(t=>norm(t.own_code)===norm(own))||null}
+function tyreByCode(car,code){const c=norm(code);return (data?.inventory?.[car]||[]).find(t=>norm(t.code)===c||norm(t.own_code)===c)||null}
+function fmtTime(ts){try{return new Date(ts).toLocaleString('es-AR')}catch(e){return ''}}
+function saveHistory(){localStorage.setItem('pit-team-scan-log',JSON.stringify(history))}
+function planEntry(){return (((data?.plans?.[sel.car]||{})[sel.session]||{})[sel.position]||{})}
+
+async function gf(url,opts={}){
+  opts.headers=Object.assign({},opts.headers||{},{Authorization:"Bearer "+accessToken});
+  const r=await fetch(url,opts);
+  if(r.status===401) throw new Error("TOKEN_VENCIDO");
+  return r;
+}
+async function findFile(){
+  if(fileId) return fileId;
+  const q=encodeURIComponent("name='"+SYNC_FILE+"' and trashed=false");
+  const r=await gf("https://www.googleapis.com/drive/v3/files?q="+q+"&spaces=drive&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&pageSize=10");
+  if(!r.ok) throw new Error("No pude buscar PitTyreData.json");
+  const j=await r.json();
+  if(j.files&&j.files.length){
+    fileId=j.files[0].id; localStorage.setItem("pit-team-drive-file-id",fileId); return fileId;
+  }
+  throw new Error("No encontré PitTyreData.json");
+}
+async function readDrive(){
+  const id=await findFile();
+  const r=await gf("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+"?alt=media");
+  if(!r.ok) throw new Error("No pude leer PitTyreData.json");
+  const j=await r.json();
+  if(j.schema!=="pit-tyre-check-sync-v1" || !j.inventory || !j.plans) throw new Error("PitTyreData.json no válido");
+  return j;
+}
+function saveToken(resp){
+  accessToken=resp.access_token;
+  const expires=(Date.now()+((Number(resp.expires_in)||3500)*1000)-60000);
+  localStorage.setItem("pit-team-google-token",accessToken);
+  localStorage.setItem("pit-team-google-exp",String(expires));
+}
+function loadToken(){
+  const exp=Number(localStorage.getItem("pit-team-google-exp")||0);
+  const tok=localStorage.getItem("pit-team-google-token")||"";
+  if(tok && exp>Date.now()){accessToken=tok;return true}
+  localStorage.removeItem("pit-team-google-token");localStorage.removeItem("pit-team-google-exp");return false;
+}
+async function syncReadOnly(){
+  if(!accessToken) return false;
+  setSync("Actualizando desde Google Drive…");
+  try{
+    const remote=await readDrive();
+    data={schema:remote.schema,generated_at:remote.generated_at,inventory:remote.inventory,plans:remote.plans};
+    localStorage.setItem('pit-team-data-cache',JSON.stringify(data));
+    setSync("Actualizado ✔  "+fmtTime(remote.generated_at||Date.now()),"ok");
+    render();
+    return true;
+  }catch(e){
+    if(e.message==="TOKEN_VENCIDO"){
+      accessToken=null; localStorage.removeItem("pit-team-google-token");localStorage.removeItem("pit-team-google-exp");
+      setSync("Google necesita autorización","wait",true);
+      return false;
+    }
+    console.error(e);
+    setSync("Sin conexión: usando última copia","bad",false);
+    render();
+    return false;
+  }
+}
+function requestGoogle(fromUser=false){
+  if(!tokenClient){setSync("Cargando Google…");return}
+  setSync("Conectando con Google…");
+  try{
+    tokenClient.requestAccessToken({prompt:"",login_hint:"hondatcr@gmail.com"});
+  }catch(e){
+    setSync("Tocá ACTIVAR GOOGLE","wait",true);
+  }
+}
+function initGoogle(){
+  if(!(window.google&&google.accounts&&google.accounts.oauth2)){setTimeout(initGoogle,250);return}
+  tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:CLIENT_ID,
+    scope:SCOPES,
+    prompt:"",
+    login_hint:"hondatcr@gmail.com",
+    callback:async resp=>{
+      if(resp.error){setSync("Tocá ACTIVAR GOOGLE","wait",true);return}
+      saveToken(resp);
+      await syncReadOnly();
+    }
+  });
+  if(loadToken()) syncReadOnly();
+  else {
+    // Intento automático al abrir. Si el navegador bloquea la ventana,
+    // queda visible un único botón de autorización.
+    setTimeout(()=>requestGoogle(false),500);
+    setTimeout(()=>{
+      if(!accessToken && document.getElementById('syncText').textContent.includes('Conectando')){
+        setSync("Tocá ACTIVAR GOOGLE","wait",true);
+      }
+    },2500);
+  }
+}
+document.getElementById('authBtn').onclick=()=>requestGoogle(true);
+
+function render(){tab==='scan'?renderScan():renderHistory();document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab))}
+function renderScan(){
+ const e=planEntry(), tyre=tyreByOwn(sel.car,e.own_code);
+ document.getElementById('main').innerHTML=`
+ <div class="card"><h2>Auto / sesión</h2><div class="row">
+   <div class="field"><label>Auto</label><select id="car">${CARS.map(c=>`<option ${c===sel.car?'selected':''}>${c}</option>`).join('')}</select></div>
+   <div class="field"><label>Sesión</label><select id="session">${SESSIONS.map(s=>`<option ${s===sel.session?'selected':''}>${s}</option>`).join('')}</select></div>
+ </div><label style="margin-top:12px">Posición</label><div class="pos-grid">${POS.map(p=>`<div class="pos-btn ${p===sel.position?'active':''}" data-pos="${p}">${p} · ${POSLAB[p]}</div>`).join('')}</div></div>
+ <div class="card"><h2>Plan para esta posición</h2><div class="stats">
+   <div class="stat"><div class="val">${e.own_code??'—'}</div><div class="lbl">Código esperado</div></div>
+   <div class="stat"><div class="val">${e.start_bar??'—'}</div><div class="lbl">Presión bar</div></div>
+   <div class="stat"><div class="val">${tyre?.set??'—'}</div><div class="lbl">Set</div></div>
+ </div></div>
+ ${lastResult?resultHtml(lastResult):''}
+ <button class="btn" id="scanBtn">📷 ESCANEAR CÓDIGO</button>
+ <button class="btn secondary" style="margin-top:9px" id="manualBtn">Ingresar código a mano</button>`;
+ document.getElementById('car').onchange=e=>{sel.car=e.target.value;lastResult=null;render()};
+ document.getElementById('session').onchange=e=>{sel.session=e.target.value;lastResult=null;render()};
+ document.querySelectorAll('[data-pos]').forEach(b=>b.onclick=()=>{sel.position=b.dataset.pos;lastResult=null;render()});
+ document.getElementById('scanBtn').onclick=openScanner;
+ document.getElementById('manualBtn').onclick=()=>{const c=prompt('Código del neumático:');if(c)processScan(c)};
+}
+function resultHtml(r){
+ const title=r.type==='ok'?'✅ NEUMÁTICO CORRECTO':r.type==='bad'?'❌ NEUMÁTICO INCORRECTO':'⚠️ '+r.title;
+ return `<div class="result ${r.type}"><div class="verdict">${title}</div><div class="detail">${r.detail}</div><div class="stats">
+ <div class="stat"><div class="val">${r.scanned??'—'}</div><div class="lbl">Escaneado</div></div>
+ <div class="stat"><div class="val">${r.expected??'—'}</div><div class="lbl">Esperado</div></div>
+ <div class="stat"><div class="val">${r.pressure??'—'}</div><div class="lbl">Presión</div></div></div></div>`;
+}
+function processScan(code){
+ const tyre=tyreByCode(sel.car,code), e=planEntry(); let r;
+ if(!tyre) r={type:'warn',title:'CÓDIGO NO ENCONTRADO',detail:`${code} no está en el inventario del auto #${sel.car}.`,scanned:'—',expected:e.own_code??'—',pressure:e.start_bar??'—'};
+ else if(!e.own_code) r={type:'warn',title:'SIN PLAN CARGADO',detail:`No hay neumático planificado para ${sel.session} / ${sel.position}.`,scanned:tyre.own_code,expected:'—',pressure:'—'};
+ else if(norm(tyre.own_code)===norm(e.own_code)) r={type:'ok',detail:`${tyre.own_code} es el correcto para ${sel.position}.`,scanned:tyre.own_code,expected:e.own_code,pressure:e.start_bar};
+ else r={type:'bad',detail:`Escaneaste ${tyre.own_code}, pero acá va ${e.own_code}.`,scanned:tyre.own_code,expected:e.own_code,pressure:e.start_bar};
+ lastResult=r;
+ history.unshift({ts:Date.now(),car:sel.car,session:sel.session,position:sel.position,code:String(code),scanned:r.scanned,expected:r.expected,outcome:r.type});
+ history=history.slice(0,300);saveHistory();render();
+}
+function renderHistory(){
+ const rows=history.map(h=>`<div class="log"><div><span class="${h.outcome==='ok'?'oktxt':h.outcome==='bad'?'badtxt':'warntxt'}">${h.outcome==='ok'?'OK':h.outcome==='bad'?'INCORRECTO':'AVISO'}</span> · Auto ${h.car} · ${h.session} · ${h.position}</div><div>${h.scanned||'—'} → esperado ${h.expected||'—'}</div><div class="meta">${fmtTime(h.ts)} · código leído ${h.code}</div></div>`).join('');
+ document.getElementById('main').innerHTML=`<div class="card"><h2>Historial de esta tablet</h2>${rows||'<div class="status">Todavía no hay escaneos.</div>'}</div><button class="btn secondary" id="shareHist">Compartir historial</button>`;
+ document.getElementById('shareHist').onclick=shareHistory;
+}
+async function shareHistory(){
+ const txt=history.slice(0,30).map(h=>`${fmtTime(h.ts)} | #${h.car} ${h.session} ${h.position} | ${h.outcome.toUpperCase()} | ${h.scanned||'-'} / esperado ${h.expected||'-'}`).join('\n')||'Sin escaneos.';
+ try{if(navigator.share)await navigator.share({title:'Pit Tyre Check TEAM - Historial',text:txt});else{await navigator.clipboard.writeText(txt);alert('Historial copiado.')}}catch(e){}
+}
+async function openScanner(){
+ const ov=document.createElement('div');ov.className='scan-overlay';ov.id='scanOv';
+ ov.innerHTML=`<div class="scan-top"><div>#${sel.car} · ${sel.session} · ${sel.position}</div><button class="close" id="closeScan">✕</button></div><video id="video" autoplay muted playsinline></video><div class="scan-frame"></div><div class="scan-hint" id="hint">Apuntá al código de barras</div><div class="manual"><input id="manual" inputmode="numeric" placeholder="o escribí el código..."><button id="manualOk">OK</button></div>`;
+ document.body.appendChild(ov);document.getElementById('closeScan').onclick=closeScanner;
+ const manual=()=>{const v=document.getElementById('manual').value.trim();if(v){closeScanner();processScan(v)}};
+ document.getElementById('manualOk').onclick=manual;document.getElementById('manual').onkeydown=e=>{if(e.key==='Enter')manual()};
+ const video=document.getElementById('video');
+ try{scannerStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});video.srcObject=scannerStream}catch(e){document.getElementById('hint').textContent='Sin acceso a cámara. Usá ingreso manual.';return}
+ if('BarcodeDetector' in window){
+   try{
+     const formats=await BarcodeDetector.getSupportedFormats(); const det=new BarcodeDetector({formats});
+     const loop=async()=>{if(!document.getElementById('scanOv'))return;try{const codes=await det.detect(video);if(codes?.length){const v=codes[0].rawValue;closeScanner();processScan(v);return}}catch(e){}scannerLoopId=requestAnimationFrame(loop)};
+     scannerLoopId=requestAnimationFrame(loop);
+   }catch(e){document.getElementById('hint').textContent='Lectura automática no disponible. Usá ingreso manual.'}
+ }else document.getElementById('hint').textContent='Este navegador no soporta lectura automática. Usá ingreso manual.';
+}
+function closeScanner(){if(scannerLoopId)cancelAnimationFrame(scannerLoopId);scannerLoopId=null;if(scannerStream){scannerStream.getTracks().forEach(t=>t.stop());scannerStream=null}document.getElementById('scanOv')?.remove()}
+
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;lastResult=null;render()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&accessToken)syncReadOnly()});
+window.addEventListener('online',()=>{if(accessToken)syncReadOnly();else requestGoogle(false)});
+setInterval(()=>{if(!document.hidden&&accessToken)syncReadOnly()},120000);
+
+render();
+initGoogle();
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}))}
+</script>
+</body>
+</html>
