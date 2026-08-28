@@ -1393,7 +1393,7 @@ document.querySelectorAll('nav.tabbar button').forEach(b=>{
 <script>
 (function(){
 const CLIENT_ID="550070179587-7ef0jobb4ok4fm4vuvem92sc9h71anpe.apps.googleusercontent.com";
-const SCOPES="https://www.googleapis.com/auth/drive.file";
+const SCOPES="https://www.googleapis.com/auth/drive";
 const SYNC_FILE="PitTyreData.json";
 let tokenClient=null, accessToken=null, pendingSync=false, fileId=localStorage.getItem("pit-drive-file-id")||"";
 function status(m,g){const e=document.getElementById("driveSyncStatus");if(e){e.textContent=m;e.style.color=g?"#86efac":"#9ca3af";}}
@@ -1402,7 +1402,7 @@ function status(m,g){const e=document.getElementById("driveSyncStatus");if(e){e.
 function getLS(k,f){try{const v=localStorage.getItem(k);return v?JSON.parse(v):f;}catch(e){return f;}}
 function payload(){return {schema:"pit-tyre-check-sync-v1",generated_at:new Date().toISOString(),source:"Pit Tyre Check v2.0 Drive",inventory:{"37":getLS("inventory-37",[]),"85":getLS("inventory-85",[])},plans:{"37":getLS("plan-37",{}),"85":getLS("plan-85",{})},history:getLS("scan-log",[])};}
 async function gf(u,o={}){o.headers=Object.assign({},o.headers||{},{Authorization:"Bearer "+accessToken});const r=await fetch(u,o);if(r.status===401)throw new Error("Sesión Google vencida");return r;}
-async function findFile(){const q=encodeURIComponent("name='"+SYNC_FILE+"' and trashed=false");const r=await gf("https://www.googleapis.com/drive/v3/files?q="+q+"&spaces=drive&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&pageSize=10");if(!r.ok)throw new Error("No pude buscar el JSON");const j=await r.json();if(j.files&&j.files.length){fileId=j.files[0].id;localStorage.setItem("pit-drive-file-id",fileId);return fileId;}fileId="";localStorage.removeItem("pit-drive-file-id");return "";}
+async function findFile(){const q=encodeURIComponent("name='"+SYNC_FILE+"' and trashed=false");const r=await gf("https://www.googleapis.com/drive/v3/files?q="+q+"&spaces=drive&fields=files(id,name,modifiedTime,parents,size)&orderBy=modifiedTime desc&pageSize=100");if(!r.ok)throw new Error("No pude buscar el JSON");const j=await r.json();if(j.files&&j.files.length){fileId=j.files[0].id;localStorage.setItem("pit-drive-file-id",fileId);return fileId;}fileId="";localStorage.removeItem("pit-drive-file-id");return "";}
 async function createFile(d){const b="pittyre_"+Date.now(),meta=JSON.stringify({name:SYNC_FILE,mimeType:"application/json"}),body="--"+b+"\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"+meta+"\r\n--"+b+"\r\nContent-Type: application/json\r\n\r\n"+JSON.stringify(d,null,2)+"\r\n--"+b+"--";const r=await gf("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",{method:"POST",headers:{"Content-Type":"multipart/related; boundary="+b},body});if(!r.ok)throw new Error("No pude crear el JSON");const j=await r.json();fileId=j.id;localStorage.setItem("pit-drive-file-id",fileId);}
 async function updateFile(id,d){const r=await gf("https://www.googleapis.com/upload/drive/v3/files/"+encodeURIComponent(id)+"?uploadType=media",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(d,null,2)});if(!r.ok)throw new Error("No pude actualizar el JSON");}
 function comparableLocal(){
