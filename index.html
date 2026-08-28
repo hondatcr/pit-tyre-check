@@ -1440,23 +1440,53 @@ async function readRemote(id){
 async function syncNow(){
   if(!accessToken){status("Primero conectá Google");return;}
   const btn=document.getElementById("btnDriveSync");
-  btn.disabled=true; status("Leyendo Drive...");
+  btn.disabled=true; status("Sincronizando...");
   try{
     const id=await findFile();
-    if(!id){
-      status("ERROR: No encontré PitTyreData.json en Drive");
-      return;
-    }
+    if(!id){ status("ERROR: No encontré PitTyreData.json en Drive"); return; }
+
     const remote=await readRemote(id);
     if(remote.schema!=="pit-tyre-check-sync-v1") throw new Error("JSON de Drive no válido");
 
-    // Al pulsar SYNC manualmente, Drive es la fuente maestra.
-    // Esto elimina estados locales viejos del ADMIN (especialmente en iPhone/PWA).
-    applyRemote(remote);
-    localStorage.setItem("pit-last-remote-stamp",remote.generated_at||"");
+    const remoteStamp=remote.generated_at||"";
+    const lastStamp=localStorage.getItem("pit-last-remote-stamp")||"";
+    const dirty=localStorage.getItem("pit-local-dirty-at")||"";
+    const local=comparableLocal();
+
+    // ADMIN tiene cambios: subir sólo si Drive no cambió mientras tanto.
+    if(dirty){
+      if(remoteStamp===lastStamp){
+        const d=payload();
+        await updateFile(id,d);
+        localStorage.setItem("pit-last-remote-stamp",d.generated_at);
+        localStorage.removeItem("pit-local-dirty-at");
+        status("App → Drive ✔",true);
+        return;
+      }
+      if(sameData(local,remote)){
+        localStorage.setItem("pit-last-remote-stamp",remoteStamp);
+        localStorage.removeItem("pit-local-dirty-at");
+        status("Sincronizado ✔",true);
+        return;
+      }
+      status("⚠ CONFLICTO: cambiaron App y Excel. No se pisó nada.");
+      return;
+    }
+
+    // ADMIN sin cambios: Drive es fuente maestra.
+    // Se compara contenido real para corregir caches viejos del iPhone.
+    if(!sameData(local,remote)){
+      applyRemote(remote);
+      localStorage.setItem("pit-last-remote-stamp",remoteStamp);
+      localStorage.removeItem("pit-local-dirty-at");
+      status("Drive → App ✔",true);
+      setTimeout(()=>location.reload(),600);
+      return;
+    }
+
+    localStorage.setItem("pit-last-remote-stamp",remoteStamp);
     localStorage.removeItem("pit-local-dirty-at");
-    status("Drive → App ✔",true);
-    setTimeout(()=>location.reload(),600);
+    status("Ya está sincronizado ✔",true);
   }catch(e){
     console.error(e);
     status("ERROR: "+e.message);
