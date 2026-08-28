@@ -1330,16 +1330,16 @@ document.querySelectorAll('nav.tabbar button').forEach(b=>{
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <div id="driveSyncPanel" style="position:fixed;right:10px;bottom:76px;z-index:9999;background:#111827;border:1px solid #374151;border-radius:12px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.35);font-family:system-ui;color:#fff;width:220px">
 <div style="font-weight:800;font-size:13px;margin-bottom:7px">☁️ SYNC GOOGLE DRIVE</div>
-<button id="btnDriveConnect" style="width:100%;padding:9px;border:0;border-radius:8px;font-weight:800;cursor:pointer;margin-bottom:6px">Conectar Google</button>
-<button id="btnDriveSync" disabled style="width:100%;padding:9px;border:0;border-radius:8px;font-weight:800;cursor:pointer">🔄 SINCRONIZAR</button>
-<div id="driveSyncStatus" style="font-size:11px;color:#9ca3af;margin-top:7px">No conectado</div>
+<button id="btnDriveConnect" style="display:none">Conectar Google</button>
+<button id="btnDriveSync" style="width:100%;padding:9px;border:0;border-radius:8px;font-weight:800;cursor:pointer">🔄 SINCRONIZAR</button>
+<div id="driveSyncStatus" style="font-size:11px;color:#9ca3af;margin-top:7px">Listo</div>
 </div>
 <script>
 (function(){
 const CLIENT_ID="550070179587-7ef0jobb4ok4fm4vuvem92sc9h71anpe.apps.googleusercontent.com";
 const SCOPES="https://www.googleapis.com/auth/drive.file";
 const SYNC_FILE="PitTyreData.json";
-let tokenClient=null, accessToken=null, fileId=localStorage.getItem("pit-drive-file-id")||"";
+let tokenClient=null, accessToken=null, pendingSync=false, fileId=localStorage.getItem("pit-drive-file-id")||"";
 function status(m,g){const e=document.getElementById("driveSyncStatus");if(e){e.textContent=m;e.style.color=g?"#86efac":"#9ca3af";}}
 function getLS(k,f){try{const v=localStorage.getItem(k);return v?JSON.parse(v):f;}catch(e){return f;}}
 function payload(){return {schema:"pit-tyre-check-sync-v1",generated_at:new Date().toISOString(),source:"Pit Tyre Check v2.0 Drive",inventory:{"37":getLS("inventory-37",[]),"85":getLS("inventory-85",[])},plans:{"37":getLS("plan-37",{}),"85":getLS("plan-85",{})},history:getLS("scan-log",[])};}
@@ -1470,15 +1470,20 @@ function initGoogle(){
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
     scope: SCOPES,
-    callback: (resp)=>{
+    prompt: "",
+    login_hint: "hondatcr@gmail.com",
+    callback: async (resp)=>{
       if(resp.error){
+        pendingSync=false;
         status("Google: "+resp.error);
         return;
       }
       accessToken = resp.access_token;
-      document.getElementById("btnDriveSync").disabled = false;
-      document.getElementById("btnDriveConnect").textContent = "Google conectado ✔";
-      status("Conectado. Listo para sincronizar.", true);
+      status("Google conectado ✔", true);
+      if(pendingSync){
+        pendingSync=false;
+        await syncNow();
+      }
     }
   });
 }
@@ -1487,15 +1492,21 @@ document.addEventListener("DOMContentLoaded", ()=>{
   const connectBtn = document.getElementById("btnDriveConnect");
   const syncBtn = document.getElementById("btnDriveSync");
 
-  connectBtn.onclick = ()=>{
+  connectBtn.onclick = ()=>{};
+
+  syncBtn.onclick = async ()=>{
+    if(accessToken){
+      await syncNow();
+      return;
+    }
     if(!tokenClient){
       status("Cargando Google...");
       return;
     }
-    tokenClient.requestAccessToken({prompt: accessToken ? "" : "consent"});
+    pendingSync=true;
+    status("Conectando con Google...");
+    tokenClient.requestAccessToken({prompt:"", login_hint:"hondatcr@gmail.com"});
   };
-
-  syncBtn.onclick = syncNow;
   initGoogle();
 });
 })();
