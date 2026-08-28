@@ -1460,6 +1460,44 @@ async function syncNow(){
   }finally{
     btn.disabled=false;
   }
+}
+
+function initGoogle(){
+  if(!(window.google && google.accounts && google.accounts.oauth2)){
+    setTimeout(initGoogle,300);
+    return;
+  }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: (resp)=>{
+      if(resp.error){
+        status("Google: "+resp.error);
+        return;
+      }
+      accessToken = resp.access_token;
+      document.getElementById("btnDriveSync").disabled = false;
+      document.getElementById("btnDriveConnect").textContent = "Google conectado ✔";
+      status("Conectado. Listo para sincronizar.", true);
+    }
+  });
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  const connectBtn = document.getElementById("btnDriveConnect");
+  const syncBtn = document.getElementById("btnDriveSync");
+
+  connectBtn.onclick = ()=>{
+    if(!tokenClient){
+      status("Cargando Google...");
+      return;
+    }
+    tokenClient.requestAccessToken({prompt: accessToken ? "" : "consent"});
+  };
+
+  syncBtn.onclick = syncNow;
+  initGoogle();
+});
 })();
 </script>
 
