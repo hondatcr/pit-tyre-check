@@ -316,6 +316,13 @@
   }
 }
 
+
+@media (max-width: 700px) {
+  .excel-import-card {
+    display: none !important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -833,7 +840,7 @@ let planSel = { car:'37', session:SESSIONS[0] };
 function renderPlanTab(){
   const wrap = document.createElement('div');
   const importCard = document.createElement('div');
-  importCard.className='card';
+  importCard.className='card excel-import-card';
   importCard.innerHTML = `
     <h2>Importar plan desde Excel</h2>
     <input type="file" id="importExcelInput" accept=".xlsx" style="display:none;">
@@ -1472,17 +1479,18 @@ async function syncNow(){
     const remoteChanged = remoteStamp !== lastStamp;
     const localChanged = !!dirty;
 
-    if(!remoteChanged && !localChanged){
-      status("Ya está sincronizado ✔",true);
-      return;
-    }
-
-    if(remoteChanged && !localChanged){
-      applyRemote(remote);
-      localStorage.setItem("pit-last-remote-stamp",remoteStamp);
-      localStorage.removeItem("pit-local-dirty-at");
-      status("Drive → App ✔",true);
-      setTimeout(()=>location.reload(),600);
+    if(!localChanged){
+      if(sameData(local,remote)){
+        localStorage.setItem("pit-last-remote-stamp",remoteStamp);
+        localStorage.removeItem("pit-local-dirty-at");
+        status("Ya está sincronizado ✔",true);
+      }else{
+        applyRemote(remote);
+        localStorage.setItem("pit-last-remote-stamp",remoteStamp);
+        localStorage.removeItem("pit-local-dirty-at");
+        status("Drive → App ✔",true);
+        setTimeout(()=>location.reload(),600);
+      }
       return;
     }
 
