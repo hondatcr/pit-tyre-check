@@ -95,8 +95,10 @@ async function gf(url,opts={}){
   return r;
 }
 async function findFile(){
-  const q=encodeURIComponent("name='"+SYNC_FILE+"' and trashed=false");
-  const r=await gf("https://www.googleapis.com/drive/v3/files?q="+q+"&spaces=drive&fields=files(id,name,modifiedTime,size)&orderBy=modifiedTime desc&pageSize=100");
+  // TEAM debe leer SOLO el PitTyreData.json de la raiz de "Mi unidad".
+  // Evita elegir copias/backups con el mismo nombre en otras carpetas.
+  const q=encodeURIComponent("name='"+SYNC_FILE+"' and 'root' in parents and trashed=false");
+  const r=await gf("https://www.googleapis.com/drive/v3/files?q="+q+"&spaces=drive&fields=files(id,name,modifiedTime,size,parents)&orderBy=modifiedTime desc&pageSize=20");
   if(!r.ok) throw new Error("No pude buscar PitTyreData.json");
   const j=await r.json();
   if(j.files&&j.files.length){
@@ -106,11 +108,15 @@ async function findFile(){
   }
   fileId="";
   localStorage.removeItem("pit-team-drive-file-id");
-  throw new Error("No encontré PitTyreData.json");
+  throw new Error("No encontré PitTyreData.json en Mi unidad");
 }
 async function readDrive(){
   const id=await findFile();
-  const r=await gf("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+"?alt=media");
+  // cache-buster + no-store: fuerza a traer el contenido actual del archivo.
+  const r=await gf(
+    "https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+"?alt=media&_="+Date.now(),
+    {cache:"no-store",headers:{"Cache-Control":"no-cache"}}
+  );
   if(!r.ok) throw new Error("No pude leer PitTyreData.json");
   const j=await r.json();
   if(j.schema!=="pit-tyre-check-sync-v1" || !j.inventory || !j.plans) throw new Error("PitTyreData.json no válido");
