@@ -52,7 +52,7 @@ nav button{flex:1;background:none;border:0;color:var(--dim);padding:13px;font-we
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 const CLIENT_ID="550070179587-7ef0jobb4ok4fm4vuvem92sc9h71anpe.apps.googleusercontent.com";
-const SCOPES="https://www.googleapis.com/auth/drive.file";
+const SCOPES="https://www.googleapis.com/auth/drive";
 const SYNC_FILE="PitTyreData.json";
 const FALLBACK={"schema":"pit-tyre-check-sync-v1","generated_at":"","inventory":{"37":[{"set":1,"code":"4958448","own_code":"37-2-5","type":"SLICK","condition":"USED","side":"LEFT","pre_race_bar":10.9},{"set":2,"code":"4961480","own_code":"37-2-6","type":"SLICK","condition":"USED","side":"RIGHT","pre_race_bar":10.9},{"set":3,"code":"4953691","own_code":"37-2-7","type":"SLICK","condition":"USED","side":"LEFT","pre_race_bar":31.6},{"set":4,"code":"4961242","own_code":"37-2-8","type":"SLICK","condition":"USED","side":"RIGHT","pre_race_bar":31.6},{"set":5,"code":"495xxxxx","own_code":"37-3-1","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":6,"code":"4901183","own_code":"37-3-2","type":"SLICK","condition":"NEW","side":"RIGHT","pre_race_bar":0},{"set":7,"code":"5568133","own_code":"37-3-3","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":8,"code":"5591523","own_code":"37-3-4","type":"SLICK","condition":"NEW","side":"RIGHT","pre_race_bar":0},{"set":9,"code":"5568326","own_code":"37-3-5","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":10,"code":"5591472","own_code":"37-3-6","type":"SLICK","condition":"NEW","side":"RIGHT","pre_race_bar":0},{"set":11,"code":"5591462","own_code":"37-3-7","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":12,"code":"5568446","own_code":"37-3-8","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":13,"code":"5568117","own_code":"37-3-9","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":14,"code":"5568170","own_code":"37-3-10","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":15,"code":"5591311","own_code":"37-3-11","type":"SLICK","condition":"NEW","side":"RIGHT","pre_race_bar":0},{"set":16,"code":"5568178","own_code":"37-3-12","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0}],"85":[{"set":1,"code":"4965195","own_code":"85-2-5","type":"SLICK","condition":"USED","side":"LEFT","pre_race_bar":10.9},{"set":2,"code":"4958590","own_code":"85-2-6","type":"SLICK","condition":"USED","side":"RIGHT","pre_race_bar":10.9},{"set":3,"code":"broken","own_code":"85-3-1","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":4,"code":"broken","own_code":"85-3-2","type":"SLICK","condition":"NEW","side":"RIGHT","pre_race_bar":0},{"set":5,"code":"5575645","own_code":"85-3-3","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":6,"code":"5243917","own_code":"85-3-4","type":"SLICK","condition":"NEW","side":"RIGHT","pre_race_bar":0},{"set":7,"code":"5591526","own_code":"85-3-5","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":8,"code":"5591406","own_code":"85-3-6","type":"SLICK","condition":"NEW","side":"RIGHT","pre_race_bar":0},{"set":9,"code":"5591482","own_code":"85-3-7","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":10,"code":"5577629","own_code":"85-3-8","type":"SLICK","condition":"NEW","side":"RIGHT","pre_race_bar":0},{"set":11,"code":"5591296","own_code":"85-3-9","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":12,"code":"5538840","own_code":"85-3-10","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":13,"code":"5575336","own_code":"85-3-11","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":14,"code":"5577639","own_code":"85-3-12","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0},{"set":15,"code":"5577670","own_code":"85-3-13","type":"SLICK","condition":"NEW","side":"RIGHT","pre_race_bar":0},{"set":16,"code":"5538846","own_code":"85-3-14","type":"SLICK","condition":"NEW","side":"LEFT","pre_race_bar":0}]},"plans":{"37":{"Test 1":{"FL":{"own_code":"37-3-7","start_bar":1.6},"FR":{"own_code":"37-3-8","start_bar":1.6},"RL":{"own_code":"37-3-3","start_bar":1.9},"RR":{"own_code":"37-3-4","start_bar":1.9}},"Test 2":{"FL":{"own_code":"37-3-7","start_bar":1.6},"FR":{"own_code":"37-3-8","start_bar":1.6},"RL":{"own_code":"37-3-3","start_bar":1.9},"RR":{"own_code":"37-3-4","start_bar":1.9}},"FP1":{"FL":{"own_code":"37-2-5","start_bar":1.6},"FR":{"own_code":"37-2-6","start_bar":1.6},"RL":{"own_code":"37-2-7","start_bar":1.9},"RR":{"own_code":"37-2-8","start_bar":1.9}},"FP2":{"FL":{"own_code":"37-3-1","start_bar":1.6},"FR":{"own_code":"37-3-2","start_bar":1.6},"RL":{"own_code":"37-2-7","start_bar":1.9},"RR":{"own_code":"37-2-8","start_bar":1.9}},"Q1":{"FL":{"own_code":"37-3-3","start_bar":1.6},"FR":{"own_code":"37-3-4","start_bar":1.6},"RL":{"own_code":"37-3-1","start_bar":1.9},"RR":{"own_code":"37-3-2","start_bar":1.9}},"Q2":{"FL":{"own_code":"37-3-7","start_bar":1.6},"FR":{"own_code":"37-3-8","start_bar":1.6},"RL":{"own_code":"37-3-1","start_bar":1.9},"RR":{"own_code":"37-3-2","start_bar":1.9}},"R1":{"FL":{"own_code":"37-3-7","start_bar":1.6},"FR":{"own_code":"37-3-8","start_bar":1.6},"RL":{"own_code":"37-3-3","start_bar":1.9},"RR":{"own_code":"37-3-4","start_bar":1.9}},"R2":{"FL":{"own_code":"37-3-9","start_bar":1.6},"FR":{"own_code":"37-3-10","start_bar":1.6},"RL":{"own_code":"37-3-5","start_bar":1.9},"RR":{"own_code":"37-3-6","start_bar":1.9}}},"85":{"Test 1":{"FL":{"start_bar":null,"own_code":null},"FR":{"start_bar":null,"own_code":null},"RL":{"start_bar":null,"own_code":null},"RR":{"start_bar":null,"own_code":null}},"Test 2":{"FL":{"start_bar":null,"own_code":null},"FR":{"start_bar":null,"own_code":null},"RL":{"start_bar":null,"own_code":null},"RR":{"start_bar":null,"own_code":null}},"FP1":{"FL":{"start_bar":null,"own_code":null},"FR":{"start_bar":null,"own_code":null},"RL":{"start_bar":null,"own_code":null},"RR":{"start_bar":null,"own_code":null}},"FP2":{"FL":{"start_bar":null,"own_code":null},"FR":{"start_bar":null,"own_code":null},"RL":{"start_bar":null,"own_code":null},"RR":{"start_bar":null,"own_code":null}},"Q1":{"FL":{"start_bar":null,"own_code":null},"FR":{"start_bar":null,"own_code":null},"RL":{"start_bar":null,"own_code":null},"RR":{"start_bar":null,"own_code":null}},"Q2":{"FL":{"start_bar":null,"own_code":null},"FR":{"start_bar":null,"own_code":null},"RL":{"start_bar":null,"own_code":null},"RR":{"start_bar":null,"own_code":null}},"R1":{"FL":{"start_bar":null,"own_code":null},"FR":{"start_bar":null,"own_code":null},"RL":{"start_bar":null,"own_code":null},"RR":{"start_bar":null,"own_code":null}},"R2":{"FL":{"start_bar":null,"own_code":null},"FR":{"start_bar":null,"own_code":null},"RL":{"start_bar":null,"own_code":null},"RR":{"start_bar":null,"own_code":null}}}}};
 const CARS=['37','85'], POS=['FL','FR','RL','RR'];
@@ -74,6 +74,17 @@ function norm(v){return String(v??'').trim().toUpperCase()}
 function tyreByOwn(car,own){return (data?.inventory?.[car]||[]).find(t=>norm(t.own_code)===norm(own))||null}
 function tyreByCode(car,code){const c=norm(code);return (data?.inventory?.[car]||[]).find(t=>norm(t.code)===c||norm(t.own_code)===c)||null}
 function fmtTime(ts){try{return new Date(ts).toLocaleString('es-AR')}catch(e){return ''}}
+function lastTabletSync(){return localStorage.getItem('pit-team-last-sync-local')||''}
+function setLastTabletSyncNow(){
+  const now=new Date();
+  localStorage.setItem('pit-team-last-sync-local',now.toISOString());
+  return now;
+}
+function setOfflineStatus(){
+  const last=lastTabletSync();
+  if(last) setSync("Sin conexión · última actualización "+fmtTime(last),"bad",false);
+  else setSync("Sin conexión: usando última copia","bad",false);
+}
 function saveHistory(){localStorage.setItem('pit-team-scan-log',JSON.stringify(history))}
 function planEntry(){return (((data?.plans?.[sel.car]||{})[sel.session]||{})[sel.position]||{})}
 
@@ -84,14 +95,17 @@ async function gf(url,opts={}){
   return r;
 }
 async function findFile(){
-  if(fileId) return fileId;
   const q=encodeURIComponent("name='"+SYNC_FILE+"' and trashed=false");
-  const r=await gf("https://www.googleapis.com/drive/v3/files?q="+q+"&spaces=drive&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&pageSize=10");
+  const r=await gf("https://www.googleapis.com/drive/v3/files?q="+q+"&spaces=drive&fields=files(id,name,modifiedTime,size)&orderBy=modifiedTime desc&pageSize=100");
   if(!r.ok) throw new Error("No pude buscar PitTyreData.json");
   const j=await r.json();
   if(j.files&&j.files.length){
-    fileId=j.files[0].id; localStorage.setItem("pit-team-drive-file-id",fileId); return fileId;
+    fileId=j.files[0].id;
+    localStorage.setItem("pit-team-drive-file-id",fileId);
+    return fileId;
   }
+  fileId="";
+  localStorage.removeItem("pit-team-drive-file-id");
   throw new Error("No encontré PitTyreData.json");
 }
 async function readDrive(){
@@ -121,7 +135,8 @@ async function syncReadOnly(){
     const remote=await readDrive();
     data={schema:remote.schema,generated_at:remote.generated_at,inventory:remote.inventory,plans:remote.plans};
     localStorage.setItem('pit-team-data-cache',JSON.stringify(data));
-    setSync("Actualizado ✔  "+fmtTime(remote.generated_at||Date.now()),"ok");
+    const syncedAt=setLastTabletSyncNow();
+    setSync("Actualizado desde Drive ✔  "+fmtTime(syncedAt),"ok");
     render();
     return true;
   }catch(e){
@@ -131,7 +146,7 @@ async function syncReadOnly(){
       return false;
     }
     console.error(e);
-    setSync("Sin conexión: usando última copia","bad",false);
+    setOfflineStatus();
     render();
     return false;
   }
@@ -239,11 +254,16 @@ async function openScanner(){
 function closeScanner(){if(scannerLoopId)cancelAnimationFrame(scannerLoopId);scannerLoopId=null;if(scannerStream){scannerStream.getTracks().forEach(t=>t.stop());scannerStream=null}document.getElementById('scanOv')?.remove()}
 
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;lastResult=null;render()});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&accessToken)syncReadOnly()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(accessToken)syncReadOnly();else requestGoogle(false)}});
 window.addEventListener('online',()=>{if(accessToken)syncReadOnly();else requestGoogle(false)});
-setInterval(()=>{if(!document.hidden&&accessToken)syncReadOnly()},120000);
+window.addEventListener('focus',()=>{if(accessToken)syncReadOnly();else requestGoogle(false)});
+window.addEventListener('pageshow',()=>{if(accessToken)syncReadOnly();else requestGoogle(false)});
+setInterval(()=>{if(!document.hidden){if(accessToken)syncReadOnly();else requestGoogle(false)}},30000);
 
 render();
+if(lastTabletSync()){
+  setSync("Última actualización "+fmtTime(lastTabletSync()),"wait",false);
+}
 initGoogle();
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}))}
 </script>
