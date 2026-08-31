@@ -1,5 +1,53 @@
-const CACHE='pit-tyre-team-google-v1';
-const SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
-self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)));self.skipWaiting();});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==CACHE).map(x=>caches.delete(x)))));self.clients.claim();});
-self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{const x=r.clone();caches.open(CACHE).then(cc=>cc.put(e.request,x));return r;})));});
+const CACHE='pit-tyre-team-google-v2';
+const SHELL=['./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+
+self.addEventListener('install',event=>{
+  event.waitUntil(
+    caches.open(CACHE).then(cache=>cache.addAll(SHELL))
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate',event=>{
+  event.waitUntil(
+    caches.keys().then(keys=>
+      Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch',event=>{
+  const req=event.request;
+  if(req.method!=='GET') return;
+
+  const url=new URL(req.url);
+  const isNavigation =
+    req.mode==='navigate' ||
+    url.pathname.endsWith('/team/') ||
+    url.pathname.endsWith('/team/index.html');
+
+  if(isNavigation){
+    event.respondWith(
+      fetch(req,{cache:'no-store'})
+        .then(res=>{
+          const copy=res.clone();
+          caches.open(CACHE).then(cache=>cache.put('./index.html',copy));
+          return res;
+        })
+        .catch(()=>caches.match('./index.html'))
+    );
+    return;
+  }
+
+  event.respondWith(
+    caches.match(req).then(cached=>{
+      if(cached) return cached;
+      return fetch(req).then(res=>{
+        const copy=res.clone();
+        caches.open(CACHE).then(cache=>cache.put(req,copy));
+        return res;
+      });
+    })
+  );
+});
