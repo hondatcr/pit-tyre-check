@@ -50,6 +50,7 @@ nav button{flex:1;background:none;border:0;color:var(--dim);padding:13px;font-we
 <nav><button data-tab="scan" class="active">✓ CHECK TYRES</button><button data-tab="history">🕘 HISTORIAL</button></nav>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://unpkg.com/@zxing/browser@latest"></script>
 <script>
 const CLIENT_ID="550070179587-7ef0jobb4ok4fm4vuvem92sc9h71anpe.apps.googleusercontent.com";
 const SCOPES="https://www.googleapis.com/auth/drive";
@@ -62,7 +63,7 @@ const SESSIONS=['Test 1','Test 2','FP1','FP2','Q1','Q2','R1','R2'];
 let data=loadCache()||FALLBACK, tab='scan', sel={car:'37',session:'Test 1',position:'FL'}, lastResult=null;
 let history=JSON.parse(localStorage.getItem('pit-team-scan-log')||'[]');
 let tokenClient=null, accessToken=null, fileId=localStorage.getItem("pit-team-drive-file-id")||"";
-let scannerStream=null, scannerLoopId=null;
+let scannerStream=null, scannerLoopId=null, zxingControls=null;
 
 function loadCache(){try{return JSON.parse(localStorage.getItem('pit-team-data-cache')||'null')}catch(e){return null}}
 function setSync(text,type='wait',showAuth=false){
@@ -266,9 +267,24 @@ async function openScanner(){
      const loop=async()=>{if(!document.getElementById('scanOv'))return;try{const codes=await det.detect(video);if(codes?.length){const v=codes[0].rawValue;closeScanner();processScan(v);return}}catch(e){}scannerLoopId=requestAnimationFrame(loop)};
      scannerLoopId=requestAnimationFrame(loop);
    }catch(e){document.getElementById('hint').textContent='Lectura automática no disponible. Usá ingreso manual.'}
- }else document.getElementById('hint').textContent='Este navegador no soporta lectura automática. Usá ingreso manual.';
+ }else{
+   try{
+     if(!(window.ZXingBrowser && ZXingBrowser.BrowserMultiFormatOneDReader)) throw new Error('ZXing no cargó');
+     document.getElementById('hint').textContent='Apuntá al código de barras · lector iPhone activo';
+     const reader=new ZXingBrowser.BrowserMultiFormatOneDReader();
+     zxingControls=await reader.decodeFromStream(scannerStream,video,(result,error,controls)=>{
+       if(result){
+         const v=result.getText ? result.getText() : String(result.text||result);
+         if(v){closeScanner();processScan(v)}
+       }
+     });
+   }catch(e){
+     console.error('ZXing fallback',e);
+     document.getElementById('hint').textContent='Lectura automática no disponible. Usá ingreso manual.';
+   }
+ }
 }
-function closeScanner(){if(scannerLoopId)cancelAnimationFrame(scannerLoopId);scannerLoopId=null;if(scannerStream){scannerStream.getTracks().forEach(t=>t.stop());scannerStream=null}document.getElementById('scanOv')?.remove()}
+function closeScanner(){if(scannerLoopId)cancelAnimationFrame(scannerLoopId);scannerLoopId=null;if(zxingControls){try{zxingControls.stop()}catch(e){}zxingControls=null}if(scannerStream){scannerStream.getTracks().forEach(t=>t.stop());scannerStream=null}document.getElementById('scanOv')?.remove()}
 
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;lastResult=null;render()});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(accessToken)syncReadOnly();else requestGoogle(false)}});
