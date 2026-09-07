@@ -71,8 +71,19 @@ function setSync(text,type='wait',showAuth=false){
   document.getElementById('authBtn').style.display=showAuth?'block':'none';
 }
 function norm(v){return String(v??'').trim().toUpperCase()}
+// Los CODE fisicos pueden llegar del escaner con ceros a la izquierda.
+// Excel puede haberlos guardado como numero y quitar esos ceros (ej. 05568326 -> 5568326).
+// Normalizamos SOLO el codigo fisico; el OWN CODE (37-3-5, etc.) se compara sin modificar.
+function normPhysicalCode(v){
+  const s=norm(v);
+  if(/^\d+$/.test(s)) return s.replace(/^0+(?=\d)/,'');
+  return s;
+}
 function tyreByOwn(car,own){return (data?.inventory?.[car]||[]).find(t=>norm(t.own_code)===norm(own))||null}
-function tyreByCode(car,code){const c=norm(code);return (data?.inventory?.[car]||[]).find(t=>norm(t.code)===c||norm(t.own_code)===c)||null}
+function tyreByCode(car,code){
+  const raw=norm(code), physical=normPhysicalCode(code);
+  return (data?.inventory?.[car]||[]).find(t=>normPhysicalCode(t.code)===physical||norm(t.own_code)===raw)||null;
+}
 function fmtTime(ts){try{return new Date(ts).toLocaleString('es-AR')}catch(e){return ''}}
 function lastTabletSync(){return localStorage.getItem('pit-team-last-sync-local')||''}
 function setLastTabletSyncNow(){
