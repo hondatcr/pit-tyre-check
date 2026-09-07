@@ -458,11 +458,18 @@ function toast(msg){
 function normCode(v){
   return String(v ?? '').trim().toUpperCase();
 }
+// Para el código físico/de fábrica, Excel puede perder ceros iniciales.
+// Ej.: el lector devuelve 05568326 y el inventario guarda 5568326.
+function normFactoryCode(v){
+  const s = normCode(v);
+  return /^\d+$/.test(s) ? (s.replace(/^0+/, '') || '0') : s;
+}
 function findTyreByCode(car, code){
-  const c = normCode(code);
-  if(!c) return null;
+  const raw = normCode(code);
+  const factory = normFactoryCode(code);
+  if(!raw) return null;
   return (state.inventory[car]||[]).find(t =>
-    normCode(t.code) === c || normCode(t.own_code) === c
+    normFactoryCode(t.code) === factory || normCode(t.own_code) === raw
   ) || null;
 }
 function findTyreBySet(car, set){
