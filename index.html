@@ -391,8 +391,6 @@ async function storeSet(key, value, shared){
     } else {
       localStorage.setItem(key, json);
     }
-    // Solo cambios reales de datos maestros deben bloquear/activar sync bidireccional.
-    // El historial de escaneos es auxiliar y nunca debe generar conflicto con Excel/Drive.
     if(['inventory-37','inventory-85','plan-37','plan-85'].includes(key)){
       localStorage.setItem('pit-local-dirty-at', new Date().toISOString());
     }
@@ -1479,66 +1477,47 @@ function status(m,g){const e=document.getElementById("driveSyncStatus");if(e){e.
 
 
 function getLS(k,f){try{const v=localStorage.getItem(k);return v?JSON.parse(v):f;}catch(e){return f;}}
-function payload(){return {schema:"pit-tyre-check-sync-v1",generated_at:new Date().toISOString(),source:"Pit Tyre Check v2.0 Drive",inventory:{"37":getLS("inventory-37",[]),"85":getLS("inventory-85",[])},plans:{"37":getLS("plan-37",{}),"85":getLS("plan-85",{})},history:getLS("scan-log",[])};}
+function usingSharedStorage(){return !!(window.storage && typeof window.storage.get==='function' && typeof window.storage.set==='function');}
+async function syncGet(k,f){
+  const v=await storeGet(k,true);
+  return v===null || v===undefined ? f : v;
+}
+async function syncSetRaw(k,v){
+  const json=JSON.stringify(v);
+  if(usingSharedStorage()) await window.storage.set(k,json,true);
+  else localStorage.setItem(k,json);
+}
+async function payload(){return {schema:"pit-tyre-check-sync-v1",generated_at:new Date().toISOString(),source:"Pit Tyre Check v2.0 Drive",inventory:{"37":await syncGet("inventory-37",[]),"85":await syncGet("inventory-85",[])},plans:{"37":await syncGet("plan-37",{}),"85":await syncGet("plan-85",{})},history:await syncGet("scan-log",[])};}
 async function gf(u,o={}){o.headers=Object.assign({},o.headers||{},{Authorization:"Bearer "+accessToken});const r=await fetch(u,o);if(r.status===401)throw new Error("Sesión Google vencida");return r;}
 async function findFile(){const q=encodeURIComponent("name='"+SYNC_FILE+"' and trashed=false");const r=await gf("https://www.googleapis.com/drive/v3/files?q="+q+"&spaces=drive&fields=files(id,name,modifiedTime,parents,size)&orderBy=modifiedTime desc&pageSize=100");if(!r.ok)throw new Error("No pude buscar el JSON");const j=await r.json();if(j.files&&j.files.length){fileId=j.files[0].id;localStorage.setItem("pit-drive-file-id",fileId);return fileId;}fileId="";localStorage.removeItem("pit-drive-file-id");return "";}
 async function createFile(d){const b="pittyre_"+Date.now(),meta=JSON.stringify({name:SYNC_FILE,mimeType:"application/json"}),body="--"+b+"\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"+meta+"\r\n--"+b+"\r\nContent-Type: application/json\r\n\r\n"+JSON.stringify(d,null,2)+"\r\n--"+b+"--";const r=await gf("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",{method:"POST",headers:{"Content-Type":"multipart/related; boundary="+b},body});if(!r.ok)throw new Error("No pude crear el JSON");const j=await r.json();fileId=j.id;localStorage.setItem("pit-drive-file-id",fileId);}
 async function updateFile(id,d){const r=await gf("https://www.googleapis.com/upload/drive/v3/files/"+encodeURIComponent(id)+"?uploadType=media",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(d,null,2)});if(!r.ok)throw new Error("No pude actualizar el JSON");}
-function comparableLocal(){
-  // Para decidir conflictos sólo importan los datos maestros.
-  // El historial puede variar por escaneos en cualquier dispositivo y no debe bloquear Plan/Inventario.
+async function comparableLocal(){
   return {
-    inventory:{"37":getLS("inventory-37",[]),"85":getLS("inventory-85",[])},
-    plans:{"37":getLS("plan-37",{}),"85":getLS("plan-85",{})}
+    inventory:{"37":await syncGet("inventory-37",[]),"85":await syncGet("inventory-85",[])},
+    plans:{"37":await syncGet("plan-37",{}),"85":await syncGet("plan-85",{})},
+    history:await syncGet("scan-log",[])
   };
 }
 function sameData(a,b){
   try{
     return JSON.stringify(a)===JSON.stringify({
       inventory:b.inventory||{"37":[],"85":[]},
-      plans:b.plans||{"37":{},"85":{}}
+      plans:b.plans||{"37":{},"85":{}},
+      history:b.history||[]
     });
   }catch(e){ return false; }
 }
-function mergeHistory(localHist, remoteHist){
-  const all=[...(Array.isArray(localHist)?localHist:[]), ...(Array.isArray(remoteHist)?remoteHist:[])];
-  const seen=new Set();
-  const out=[];
-  for(const e of all){
-    if(!e || typeof e!=="object") continue;
-    const k=[e.ts,e.car,e.session,e.position,e.code,e.scannedOwnCode,e.expectedOwnCode,e.outcome].join("|");
-    if(seen.has(k)) continue;
-    seen.add(k); out.push(e);
-  }
-  out.sort((a,b)=>(Number(b.ts)||0)-(Number(a.ts)||0));
-  return out.slice(0,300);
-}
-function applyRemote(d){
+async function applyRemote(d){
   if(d.inventory){
-    if(d.inventory["37"]!==undefined) localStorage.setItem("inventory-37",JSON.stringify(d.inventory["37"]));
-    if(d.inventory["85"]!==undefined) localStorage.setItem("inventory-85",JSON.stringify(d.inventory["85"]));
+    if(d.inventory["37"]!==undefined) await syncSetRaw("inventory-37",d.inventory["37"]);
+    if(d.inventory["85"]!==undefined) await syncSetRaw("inventory-85",d.inventory["85"]);
   }
   if(d.plans){
-    if(d.plans["37"]!==undefined) localStorage.setItem("plan-37",JSON.stringify(d.plans["37"]));
-    if(d.plans["85"]!==undefined) localStorage.setItem("plan-85",JSON.stringify(d.plans["85"]));
+    if(d.plans["37"]!==undefined) await syncSetRaw("plan-37",d.plans["37"]);
+    if(d.plans["85"]!==undefined) await syncSetRaw("plan-85",d.plans["85"]);
   }
-  // Nunca perder historial local por una bajada desde Drive: se fusiona.
-  const merged=mergeHistory(getLS("scan-log",[]), d.history||[]);
-  localStorage.setItem("scan-log",JSON.stringify(merged));
-}
-function saveRecoveryBackup(remoteStamp){
-  try{
-    const backup={
-      saved_at:new Date().toISOString(),
-      remote_stamp:remoteStamp||"",
-      dirty:localStorage.getItem("pit-local-dirty-at")||"",
-      last_stamp:localStorage.getItem("pit-last-remote-stamp")||"",
-      inventory:{"37":getLS("inventory-37",[]),"85":getLS("inventory-85",[])},
-      plans:{"37":getLS("plan-37",{}),"85":getLS("plan-85",{})},
-      history:getLS("scan-log",[])
-    };
-    localStorage.setItem("pit-ios-recovery-backup-v1",JSON.stringify(backup));
-  }catch(e){ console.warn("No se pudo guardar backup de recuperación",e); }
+  if(d.history!==undefined) await syncSetRaw("scan-log",d.history);
 }
 async function readRemote(id){
   const r=await gf("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+"?alt=media");
@@ -1556,40 +1535,45 @@ async function syncNow(){
     const remote=await readRemote(id);
     if(remote.schema!=="pit-tyre-check-sync-v1") throw new Error("JSON de Drive no válido");
 
+    // iPhone: versiones anteriores escribían el remoto en localStorage, mientras la app
+    // podía leer window.storage. Migración única para unificar ambos lados sin tocar el scanner.
+    if(usingSharedStorage() && !localStorage.getItem("pit-storage-sync-v2-migrated")){
+      try{
+        const backup={
+          at:new Date().toISOString(),
+          inventory:{"37":await syncGet("inventory-37",[]),"85":await syncGet("inventory-85",[])},
+          plans:{"37":await syncGet("plan-37",{}),"85":await syncGet("plan-85",{})},
+          history:await syncGet("scan-log",[])
+        };
+        localStorage.setItem("pit-storage-sync-v2-backup",JSON.stringify(backup));
+      }catch(e){console.warn("backup storage",e);}
+      await applyRemote(remote);
+      localStorage.setItem("pit-storage-sync-v2-migrated","1");
+      localStorage.setItem("pit-last-remote-stamp",remote.generated_at||"");
+      localStorage.removeItem("pit-local-dirty-at");
+      status("Drive → iPhone ✔",true);
+      setTimeout(()=>location.reload(),400);
+      return;
+    }
+
     const remoteStamp=remote.generated_at||"";
     const lastStamp=localStorage.getItem("pit-last-remote-stamp")||"";
     const dirty=localStorage.getItem("pit-local-dirty-at")||"";
-    const local=comparableLocal();
-
-    // RECUPERACIÓN ÚNICA iPhone: sabemos que este dispositivo quedó con lastStamp/dirty viejos.
-    // Antes de forzar Drive -> App se guarda una copia completa local. Luego no vuelve a ejecutarse.
-    if(localStorage.getItem("pit-ios-recovery-v1-done")!=="1") {
-      saveRecoveryBackup(remoteStamp);
-      applyRemote(remote);
-      localStorage.setItem("pit-last-remote-stamp",remoteStamp);
-      localStorage.removeItem("pit-local-dirty-at");
-      localStorage.setItem("pit-ios-recovery-v1-done","1");
-      localStorage.setItem("pit-last-successful-sync",new Date().toISOString());
-      status("Drive → iPhone ✔ RECUPERADO",true);
-      setTimeout(()=>location.reload(),700);
-      return;
-    }
+    const local=await comparableLocal();
 
     // ADMIN tiene cambios: subir sólo si Drive no cambió mientras tanto.
     if(dirty){
       if(remoteStamp===lastStamp){
-        const d=payload();
+        const d=await payload();
         await updateFile(id,d);
         localStorage.setItem("pit-last-remote-stamp",d.generated_at);
         localStorage.removeItem("pit-local-dirty-at");
-        localStorage.setItem("pit-last-successful-sync",new Date().toISOString());
         status("App → Drive ✔",true);
         return;
       }
       if(sameData(local,remote)){
         localStorage.setItem("pit-last-remote-stamp",remoteStamp);
         localStorage.removeItem("pit-local-dirty-at");
-        localStorage.setItem("pit-last-successful-sync",new Date().toISOString());
         status("Sincronizado ✔",true);
         return;
       }
@@ -1600,10 +1584,9 @@ async function syncNow(){
     // ADMIN sin cambios: Drive es fuente maestra.
     // Se compara contenido real para corregir caches viejos del iPhone.
     if(!sameData(local,remote)){
-      applyRemote(remote);
+      await applyRemote(remote);
       localStorage.setItem("pit-last-remote-stamp",remoteStamp);
       localStorage.removeItem("pit-local-dirty-at");
-      localStorage.setItem("pit-last-successful-sync",new Date().toISOString());
       status("Drive → App ✔",true);
       setTimeout(()=>location.reload(),600);
       return;
@@ -1611,7 +1594,6 @@ async function syncNow(){
 
     localStorage.setItem("pit-last-remote-stamp",remoteStamp);
     localStorage.removeItem("pit-local-dirty-at");
-    localStorage.setItem("pit-last-successful-sync",new Date().toISOString());
     status("Ya está sincronizado ✔",true);
   }catch(e){
     console.error(e);
