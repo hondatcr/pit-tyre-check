@@ -391,9 +391,10 @@ async function storeSet(key, value, shared){
     } else {
       localStorage.setItem(key, json);
     }
+    // Solo cambios reales de datos maestros deben bloquear/activar sync bidireccional.
+    // El historial de escaneos es auxiliar y nunca debe generar conflicto con Excel/Drive.
     if(['inventory-37','inventory-85','plan-37','plan-85'].includes(key)){
       localStorage.setItem('pit-local-dirty-at', new Date().toISOString());
-      localStorage.setItem('pit-local-dirty-kind', key.startsWith('plan-') ? 'plan' : 'inventory');
     }
     return true;
   }catch(e){
@@ -1484,36 +1485,33 @@ async function findFile(){const q=encodeURIComponent("name='"+SYNC_FILE+"' and t
 async function createFile(d){const b="pittyre_"+Date.now(),meta=JSON.stringify({name:SYNC_FILE,mimeType:"application/json"}),body="--"+b+"\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"+meta+"\r\n--"+b+"\r\nContent-Type: application/json\r\n\r\n"+JSON.stringify(d,null,2)+"\r\n--"+b+"--";const r=await gf("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",{method:"POST",headers:{"Content-Type":"multipart/related; boundary="+b},body});if(!r.ok)throw new Error("No pude crear el JSON");const j=await r.json();fileId=j.id;localStorage.setItem("pit-drive-file-id",fileId);}
 async function updateFile(id,d){const r=await gf("https://www.googleapis.com/upload/drive/v3/files/"+encodeURIComponent(id)+"?uploadType=media",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(d,null,2)});if(!r.ok)throw new Error("No pude actualizar el JSON");}
 function comparableLocal(){
+  // Para decidir conflictos sólo importan los datos maestros.
+  // El historial puede variar por escaneos en cualquier dispositivo y no debe bloquear Plan/Inventario.
   return {
     inventory:{"37":getLS("inventory-37",[]),"85":getLS("inventory-85",[])},
-    plans:{"37":getLS("plan-37",{}),"85":getLS("plan-85",{})},
-    history:getLS("scan-log",[])
+    plans:{"37":getLS("plan-37",{}),"85":getLS("plan-85",{})}
   };
-}
-function legacyDirtyIsFromScan(dirty){
-  if(!dirty || localStorage.getItem('pit-local-dirty-kind')) return false;
-  const dirtyMs = Date.parse(dirty);
-  if(!Number.isFinite(dirtyMs)) return false;
-  const history = getLS('scan-log',[]);
-  if(!Array.isArray(history) || !history.length) return false;
-  const latestTs = Math.max(...history.map(e=>Number(e && e.ts)||0));
-  return latestTs > 0 && Math.abs(dirtyMs - latestTs) <= 5000;
-}
-function backupLocalBeforeRemote(reason){
-  try{
-    localStorage.setItem('pit-local-backup-before-remote', JSON.stringify({
-      saved_at:new Date().toISOString(), reason, data:comparableLocal()
-    }));
-  }catch(e){ console.warn('backup local failed',e); }
 }
 function sameData(a,b){
   try{
     return JSON.stringify(a)===JSON.stringify({
       inventory:b.inventory||{"37":[],"85":[]},
-      plans:b.plans||{"37":{},"85":{}},
-      history:b.history||[]
+      plans:b.plans||{"37":{},"85":{}}
     });
   }catch(e){ return false; }
+}
+function mergeHistory(localHist, remoteHist){
+  const all=[...(Array.isArray(localHist)?localHist:[]), ...(Array.isArray(remoteHist)?remoteHist:[])];
+  const seen=new Set();
+  const out=[];
+  for(const e of all){
+    if(!e || typeof e!=="object") continue;
+    const k=[e.ts,e.car,e.session,e.position,e.code,e.scannedOwnCode,e.expectedOwnCode,e.outcome].join("|");
+    if(seen.has(k)) continue;
+    seen.add(k); out.push(e);
+  }
+  out.sort((a,b)=>(Number(b.ts)||0)-(Number(a.ts)||0));
+  return out.slice(0,300);
 }
 function applyRemote(d){
   if(d.inventory){
@@ -1524,7 +1522,23 @@ function applyRemote(d){
     if(d.plans["37"]!==undefined) localStorage.setItem("plan-37",JSON.stringify(d.plans["37"]));
     if(d.plans["85"]!==undefined) localStorage.setItem("plan-85",JSON.stringify(d.plans["85"]));
   }
-  if(d.history!==undefined) localStorage.setItem("scan-log",JSON.stringify(d.history));
+  // Nunca perder historial local por una bajada desde Drive: se fusiona.
+  const merged=mergeHistory(getLS("scan-log",[]), d.history||[]);
+  localStorage.setItem("scan-log",JSON.stringify(merged));
+}
+function saveRecoveryBackup(remoteStamp){
+  try{
+    const backup={
+      saved_at:new Date().toISOString(),
+      remote_stamp:remoteStamp||"",
+      dirty:localStorage.getItem("pit-local-dirty-at")||"",
+      last_stamp:localStorage.getItem("pit-last-remote-stamp")||"",
+      inventory:{"37":getLS("inventory-37",[]),"85":getLS("inventory-85",[])},
+      plans:{"37":getLS("plan-37",{}),"85":getLS("plan-85",{})},
+      history:getLS("scan-log",[])
+    };
+    localStorage.setItem("pit-ios-recovery-backup-v1",JSON.stringify(backup));
+  }catch(e){ console.warn("No se pudo guardar backup de recuperación",e); }
 }
 async function readRemote(id){
   const r=await gf("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+"?alt=media");
@@ -1544,33 +1558,38 @@ async function syncNow(){
 
     const remoteStamp=remote.generated_at||"";
     const lastStamp=localStorage.getItem("pit-last-remote-stamp")||"";
-    let dirty=localStorage.getItem("pit-local-dirty-at")||"";
+    const dirty=localStorage.getItem("pit-local-dirty-at")||"";
     const local=comparableLocal();
 
-    // Migración segura: en versiones anteriores un simple escaneo marcaba ADMIN como "dirty".
-    // Solo se destraba automáticamente cuando el timestamp del dirty coincide con el último escaneo
-    // y no existe una marca explícita de cambio de Plan/Inventario. Se guarda backup antes de aplicar Drive.
-    if(dirty && legacyDirtyIsFromScan(dirty)){
-      backupLocalBeforeRemote('legacy-scan-dirty');
-      localStorage.removeItem('pit-local-dirty-at');
-      dirty="";
+    // RECUPERACIÓN ÚNICA iPhone: sabemos que este dispositivo quedó con lastStamp/dirty viejos.
+    // Antes de forzar Drive -> App se guarda una copia completa local. Luego no vuelve a ejecutarse.
+    if(localStorage.getItem("pit-ios-recovery-v1-done")!=="1") {
+      saveRecoveryBackup(remoteStamp);
+      applyRemote(remote);
+      localStorage.setItem("pit-last-remote-stamp",remoteStamp);
+      localStorage.removeItem("pit-local-dirty-at");
+      localStorage.setItem("pit-ios-recovery-v1-done","1");
+      localStorage.setItem("pit-last-successful-sync",new Date().toISOString());
+      status("Drive → iPhone ✔ RECUPERADO",true);
+      setTimeout(()=>location.reload(),700);
+      return;
     }
 
-    // ADMIN tiene cambios reales de Plan/Inventario: subir sólo si Drive no cambió mientras tanto.
+    // ADMIN tiene cambios: subir sólo si Drive no cambió mientras tanto.
     if(dirty){
       if(remoteStamp===lastStamp){
         const d=payload();
         await updateFile(id,d);
         localStorage.setItem("pit-last-remote-stamp",d.generated_at);
         localStorage.removeItem("pit-local-dirty-at");
-        localStorage.removeItem("pit-local-dirty-kind");
+        localStorage.setItem("pit-last-successful-sync",new Date().toISOString());
         status("App → Drive ✔",true);
         return;
       }
       if(sameData(local,remote)){
         localStorage.setItem("pit-last-remote-stamp",remoteStamp);
         localStorage.removeItem("pit-local-dirty-at");
-        localStorage.removeItem("pit-local-dirty-kind");
+        localStorage.setItem("pit-last-successful-sync",new Date().toISOString());
         status("Sincronizado ✔",true);
         return;
       }
@@ -1584,7 +1603,7 @@ async function syncNow(){
       applyRemote(remote);
       localStorage.setItem("pit-last-remote-stamp",remoteStamp);
       localStorage.removeItem("pit-local-dirty-at");
-      localStorage.removeItem("pit-local-dirty-kind");
+      localStorage.setItem("pit-last-successful-sync",new Date().toISOString());
       status("Drive → App ✔",true);
       setTimeout(()=>location.reload(),600);
       return;
@@ -1592,7 +1611,7 @@ async function syncNow(){
 
     localStorage.setItem("pit-last-remote-stamp",remoteStamp);
     localStorage.removeItem("pit-local-dirty-at");
-    localStorage.removeItem("pit-local-dirty-kind");
+    localStorage.setItem("pit-last-successful-sync",new Date().toISOString());
     status("Ya está sincronizado ✔",true);
   }catch(e){
     console.error(e);
