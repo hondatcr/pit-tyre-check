@@ -6,8 +6,7 @@
 <title>Pit Tyre Check</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">setTimeout(ensureDiag,500);
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --bg:#0A0C0F;
@@ -365,6 +364,7 @@
 
 <div id="toastHost"></div>
 
+<script src="https://unpkg.com/@zxing/browser@latest"></script>
 <script>
 window.__SEED__ = {"sessions": ["Test 1", "Test 2", "FP1", "FP2", "Q1", "Q2", "R1", "R2"], "inventory": {"37": [{"set": 1, "code": "4958448", "own_code": "37-2-5", "type": "SLICK", "condition": "USED", "side": "LEFT", "pre_race_bar": 10.9}, {"set": 2, "code": "4961480", "own_code": "37-2-6", "type": "SLICK", "condition": "USED", "side": "RIGHT", "pre_race_bar": 10.9}, {"set": 3, "code": "4953691", "own_code": "37-2-7", "type": "SLICK", "condition": "USED", "side": "LEFT", "pre_race_bar": 31.6}, {"set": 4, "code": "4961242", "own_code": "37-2-8", "type": "SLICK", "condition": "USED", "side": "RIGHT", "pre_race_bar": 31.6}, {"set": 5, "code": "495xxxxx", "own_code": "37-3-1", "type": "SLICK", "condition": "NEW", "side": "LEFT", "pre_race_bar": 0}, {"set": 6, "code": "4901183", "own_code": "37-3-2", "type": "SLICK", "condition": "NEW", "side": "RIGHT", "pre_race_bar": 0}, {"set": 7, "code": "5568133", "own_code": "37-3-3", "type": "SLICK", "condition": "NEW", "side": "LEFT", "pre_race_bar": 0}, {"set": 8, "code": "5591523", "own_code": "37-3-4", "type": "SLICK", "condition": "NEW", "side": "RIGHT", "pre_race_bar": 0}, {"set": 9, "code": "5568326", "own_code": "37-3-5", "type": "SLICK", "condition": "NEW", "side": "LEFT", "pre_race_bar": 0}, {"set": 10, "code": "5591472", "own_code": "37-3-6", "type": "SLICK", "condition": "NEW", "side": "RIGHT", "pre_race_bar": 0}, {"set": 11, "code": "5591462", "own_code": "37-3-7", "type": "SLICK", "condition": "NEW", "side": "LEFT", "pre_race_bar": 0}, {"set": 12, "code": "5568446", "own_code": "37-3-8", "type": "SLICK", "condition": "NEW", "side": "LEFT", "pre_race_bar": 0}, {"set": 13, "code": "5568117", "own_code": "37-3-9", "type": "SLICK", "condition": "NEW", "side": "LEFT", "pre_race_bar": 0}, {"set": 14, "code": "5568170", "own_code": "37-3-10", "type": "SLICK", "condition": "NEW", "side": "LEFT", "pre_race_bar": 0}, {"set": 15, "code": "5591311", "own_code": "37-3-11", "type": "SLICK", "condition": "NEW", "side": "RIGHT", "pre_race_bar": 0}, {"set": 16, "code": "5568178", "own_code": "37-3-12", "type": "SLICK", "condition": "NEW", "side": "LEFT", "pre_race_bar": 0}], "85": [{"set": 1, "code": "4965195", "own_code": "85-2-5", "type": "SLICK", "condition": "USED", "side": "LEFT", "pre_race_bar": 10.9}, {"set": 2, "code": "4958590", "own_code": "85-2-6", "type": "SLICK", "condition": "USED", "side": "RIGHT", "pre_race_bar": 10.9}, {"set": 3, "code": "broken", "own_code": "85-3-1", "type": "SLICK", "condition": "NEW", "side": "LEFT", "pre_race_bar": 0}, {"set": 4, "code": "broken", "own_code": "85-3-2", "type": "SLICK", "condition": "NEW", "side": "RIGHT", "pre_race_bar": 0}, {"set": 5, "code": "5575645", "own_code": "85-3-3", "type": "SLICK", "condition": "NEW", "side": "LEFT", "pre_race_bar": 0}, {"set": 6, "code": "5243917", "own_code": "85-3-4", "type": "SLICK", "condition": "NEW", "side": "RIGHT", "pre_race_bar": 0}, {"set": 7, "code": "5591526", "own_code": "85-3-5", "type": "SLICK", "condition": "NEW", "side": "LEFT", "pre_race_bar": 0}, {"set": 8, "code": "5591406", "own_code": "85-3-6", "type": "SLICK", "condition": "NEW", "side": "RIGHT", "pre_race_bar": 0}, {"set": 9, "code": "5591482", "own_code": "85-3-7", "type": "SLICK", "condition": "NEW", "side": "LEFT", "pre_race_bar": 0}, {"set": 10, "code": "5577629", "own_code": "85-3-8", "type": "SLICK", "condition": "NEW", "side": "RIGHT", "pre_race_bar": 0}, {"set": 11, "code": "5591296", "own_code": "85-3-9", "type": "SLICK", "condition": "NEW", "side": "LEFT", "pre_race_bar": 0}, {"set": 12, "code": "5538840", "own_code": "85-3-10", "type": "SLICK", "condition": "NEW", "side": "LEFT", "pre_race_bar": 0}, {"set": 13, "code": "5575336", "own_code": "85-3-11", "type": "SLICK", "condition": "NEW", "side": "LEFT", "pre_race_bar": 0}, {"set": 14, "code": "5577639", "own_code": "85-3-12", "type": "SLICK", "condition": "NEW", "side": "LEFT", "pre_race_bar": 0}, {"set": 15, "code": "5577670", "own_code": "85-3-13", "type": "SLICK", "condition": "NEW", "side": "RIGHT", "pre_race_bar": 0}, {"set": 16, "code": "5538846", "own_code": "85-3-14", "type": "SLICK", "condition": "NEW", "side": "LEFT", "pre_race_bar": 0}]}, "plan": {"37": {"Test 1": {"FL": {"own_code": "37-3-7", "start_bar": 1.6}, "FR": {"own_code": "37-3-8", "start_bar": 1.6}, "RL": {"own_code": "37-3-3", "start_bar": 1.9}, "RR": {"own_code": "37-3-4", "start_bar": 1.9}}, "Test 2": {"FL": {"own_code": "37-3-7", "start_bar": 1.6}, "FR": {"own_code": "37-3-8", "start_bar": 1.6}, "RL": {"own_code": "37-3-3", "start_bar": 1.9}, "RR": {"own_code": "37-3-4", "start_bar": 1.9}}, "FP1": {"FL": {"own_code": "37-2-5", "start_bar": 1.6}, "FR": {"own_code": "37-2-6", "start_bar": 1.6}, "RL": {"own_code": "37-2-7", "start_bar": 1.9}, "RR": {"own_code": "37-2-8", "start_bar": 1.9}}, "FP2": {"FL": {"own_code": "37-3-1", "start_bar": 1.6}, "FR": {"own_code": "37-3-2", "start_bar": 1.6}, "RL": {"own_code": "37-2-7", "start_bar": 1.9}, "RR": {"own_code": "37-2-8", "start_bar": 1.9}}, "Q1": {"FL": {"own_code": "37-3-3", "start_bar": 1.6}, "FR": {"own_code": "37-3-4", "start_bar": 1.6}, "RL": {"own_code": "37-3-1", "start_bar": 1.9}, "RR": {"own_code": "37-3-2", "start_bar": 1.9}}, "Q2": {"FL": {"own_code": "37-3-7", "start_bar": 1.6}, "FR": {"own_code": "37-3-8", "start_bar": 1.6}, "RL": {"own_code": "37-3-1", "start_bar": 1.9}, "RR": {"own_code": "37-3-2", "start_bar": 1.9}}, "R1": {"FL": {"own_code": "37-3-7", "start_bar": 1.6}, "FR": {"own_code": "37-3-8", "start_bar": 1.6}, "RL": {"own_code": "37-3-3", "start_bar": 1.9}, "RR": {"own_code": "37-3-4", "start_bar": 1.9}}, "R2": {"FL": {"own_code": "37-3-9", "start_bar": 1.6}, "FR": {"own_code": "37-3-10", "start_bar": 1.6}, "RL": {"own_code": "37-3-5", "start_bar": 1.9}, "RR": {"own_code": "37-3-6", "start_bar": 1.9}}}, "85": {"Test 1": {"FL": {"start_bar": null, "own_code": null}, "FR": {"start_bar": null, "own_code": null}, "RL": {"start_bar": null, "own_code": null}, "RR": {"start_bar": null, "own_code": null}}, "Test 2": {"FL": {"start_bar": null, "own_code": null}, "FR": {"start_bar": null, "own_code": null}, "RL": {"start_bar": null, "own_code": null}, "RR": {"start_bar": null, "own_code": null}}, "FP1": {"FL": {"start_bar": null, "own_code": null}, "FR": {"start_bar": null, "own_code": null}, "RL": {"start_bar": null, "own_code": null}, "RR": {"start_bar": null, "own_code": null}}, "FP2": {"FL": {"start_bar": null, "own_code": null}, "FR": {"start_bar": null, "own_code": null}, "RL": {"start_bar": null, "own_code": null}, "RR": {"start_bar": null, "own_code": null}}, "Q1": {"FL": {"start_bar": null, "own_code": null}, "FR": {"start_bar": null, "own_code": null}, "RL": {"start_bar": null, "own_code": null}, "RR": {"start_bar": null, "own_code": null}}, "Q2": {"FL": {"start_bar": null, "own_code": null}, "FR": {"start_bar": null, "own_code": null}, "RL": {"start_bar": null, "own_code": null}, "RR": {"start_bar": null, "own_code": null}}, "R1": {"FL": {"start_bar": null, "own_code": null}, "FR": {"start_bar": null, "own_code": null}, "RL": {"start_bar": null, "own_code": null}, "RR": {"start_bar": null, "own_code": null}}, "R2": {"FL": {"start_bar": null, "own_code": null}, "FR": {"start_bar": null, "own_code": null}, "RL": {"start_bar": null, "own_code": null}, "RR": {"start_bar": null, "own_code": null}}}}};
 
@@ -391,8 +391,9 @@ async function storeSet(key, value, shared){
     } else {
       localStorage.setItem(key, json);
     }
-    if(['inventory-37','inventory-85','plan-37','plan-85','scan-log'].includes(key)){
+    if(['inventory-37','inventory-85','plan-37','plan-85'].includes(key)){
       localStorage.setItem('pit-local-dirty-at', new Date().toISOString());
+      localStorage.setItem('pit-local-dirty-kind', key.startsWith('plan-') ? 'plan' : 'inventory');
     }
     return true;
   }catch(e){
@@ -625,26 +626,6 @@ async function processScan(code){
   renderScanTab();
 }
 
-// ZXing se carga SOLO al abrir un escáner en navegadores sin BarcodeDetector.
-// Así no participa del arranque de ADMIN ni de la sincronización en iPhone.
-let zxingBrowserLoadPromise = null;
-function ensureZXingBrowser(){
-  if(window.ZXingBrowser && ZXingBrowser.BrowserMultiFormatOneDReader) return Promise.resolve();
-  if(zxingBrowserLoadPromise) return zxingBrowserLoadPromise;
-  zxingBrowserLoadPromise = new Promise((resolve,reject)=>{
-    const sc=document.createElement('script');
-    sc.src='https://unpkg.com/@zxing/browser@0.1.5';
-    sc.async=true;
-    sc.onload=()=>{
-      if(window.ZXingBrowser && ZXingBrowser.BrowserMultiFormatOneDReader) resolve();
-      else reject(new Error('ZXing cargó sin API esperada'));
-    };
-    sc.onerror=()=>reject(new Error('No se pudo cargar ZXing'));
-    document.head.appendChild(sc);
-  });
-  return zxingBrowserLoadPromise;
-}
-
 // ---------- BARCODE SCANNER ----------
 let scannerStream = null;
 let scannerLoopId = null;
@@ -707,7 +688,6 @@ async function openScanner(){
     }
   }else{
     try{
-      await ensureZXingBrowser();
       if(!(window.ZXingBrowser && ZXingBrowser.BrowserMultiFormatOneDReader)) throw new Error('ZXing no cargó');
       document.getElementById('scanHint').textContent='Apuntá al código de barras · lector iPhone activo';
       const reader=new ZXingBrowser.BrowserMultiFormatOneDReader();
@@ -1351,7 +1331,6 @@ function openLoadScanner(){
     }
 
     try{
-      await ensureZXingBrowser();
       if(!(window.ZXingBrowser && ZXingBrowser.BrowserMultiFormatOneDReader)){
         throw new Error('ZXing no cargó');
       }
@@ -1495,30 +1474,13 @@ const CLIENT_ID="550070179587-7ef0jobb4ok4fm4vuvem92sc9h71anpe.apps.googleuserco
 const SCOPES="https://www.googleapis.com/auth/drive";
 const SYNC_FILE="PitTyreData.json";
 let tokenClient=null, accessToken=null, pendingSync=false, fileId=localStorage.getItem("pit-drive-file-id")||"";
-function ensureDiag(){
-  let d=document.getElementById("iphoneSyncDiag");
-  if(!d){
-    d=document.createElement("div"); d.id="iphoneSyncDiag";
-    d.style.cssText="position:fixed;left:8px;right:8px;top:86px;z-index:99999;background:#111827;color:#e5e7eb;border:2px solid #f59e0b;border-radius:10px;padding:9px;font:11px/1.35 monospace;white-space:pre-wrap;max-height:42vh;overflow:auto";
-    d.textContent="DIAGNOSTICO iPHONE — esperando sincronización...";
-    document.body.appendChild(d);
-  }
-  return d;
-}
-function diagSet(t){try{ensureDiag().textContent=t;}catch(e){}}
-function diagPlan(p){
-  try{
-    const out={}; ["37","85"].forEach(c=>{const pc=(p&&p[c])||{};out[c]=pc["Test 1"]||pc["TEST 1"]||pc["Test1"]||pc["TEST1"]||null;});
-    return JSON.stringify(out);
-  }catch(e){return "ERR "+e.message;}
-}
 function status(m,g){const e=document.getElementById("driveSyncStatus");if(e){e.textContent=m;e.style.color=g?"#86efac":"#9ca3af";}}
 
 
 function getLS(k,f){try{const v=localStorage.getItem(k);return v?JSON.parse(v):f;}catch(e){return f;}}
 function payload(){return {schema:"pit-tyre-check-sync-v1",generated_at:new Date().toISOString(),source:"Pit Tyre Check v2.0 Drive",inventory:{"37":getLS("inventory-37",[]),"85":getLS("inventory-85",[])},plans:{"37":getLS("plan-37",{}),"85":getLS("plan-85",{})},history:getLS("scan-log",[])};}
 async function gf(u,o={}){o.headers=Object.assign({},o.headers||{},{Authorization:"Bearer "+accessToken});const r=await fetch(u,o);if(r.status===401)throw new Error("Sesión Google vencida");return r;}
-async function findFile(){const q=encodeURIComponent("name='"+SYNC_FILE+"' and trashed=false");const r=await gf("https://www.googleapis.com/drive/v3/files?q="+q+"&spaces=drive&fields=files(id,name,modifiedTime,parents,size)&orderBy=modifiedTime desc&pageSize=100");if(!r.ok)throw new Error("No pude buscar el JSON");const j=await r.json();window.__diagFiles=j.files||[];if(j.files&&j.files.length){fileId=j.files[0].id;localStorage.setItem("pit-drive-file-id",fileId);return fileId;}fileId="";localStorage.removeItem("pit-drive-file-id");return "";}
+async function findFile(){const q=encodeURIComponent("name='"+SYNC_FILE+"' and trashed=false");const r=await gf("https://www.googleapis.com/drive/v3/files?q="+q+"&spaces=drive&fields=files(id,name,modifiedTime,parents,size)&orderBy=modifiedTime desc&pageSize=100");if(!r.ok)throw new Error("No pude buscar el JSON");const j=await r.json();if(j.files&&j.files.length){fileId=j.files[0].id;localStorage.setItem("pit-drive-file-id",fileId);return fileId;}fileId="";localStorage.removeItem("pit-drive-file-id");return "";}
 async function createFile(d){const b="pittyre_"+Date.now(),meta=JSON.stringify({name:SYNC_FILE,mimeType:"application/json"}),body="--"+b+"\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"+meta+"\r\n--"+b+"\r\nContent-Type: application/json\r\n\r\n"+JSON.stringify(d,null,2)+"\r\n--"+b+"--";const r=await gf("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",{method:"POST",headers:{"Content-Type":"multipart/related; boundary="+b},body});if(!r.ok)throw new Error("No pude crear el JSON");const j=await r.json();fileId=j.id;localStorage.setItem("pit-drive-file-id",fileId);}
 async function updateFile(id,d){const r=await gf("https://www.googleapis.com/upload/drive/v3/files/"+encodeURIComponent(id)+"?uploadType=media",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(d,null,2)});if(!r.ok)throw new Error("No pude actualizar el JSON");}
 function comparableLocal(){
@@ -1527,6 +1489,22 @@ function comparableLocal(){
     plans:{"37":getLS("plan-37",{}),"85":getLS("plan-85",{})},
     history:getLS("scan-log",[])
   };
+}
+function legacyDirtyIsFromScan(dirty){
+  if(!dirty || localStorage.getItem('pit-local-dirty-kind')) return false;
+  const dirtyMs = Date.parse(dirty);
+  if(!Number.isFinite(dirtyMs)) return false;
+  const history = getLS('scan-log',[]);
+  if(!Array.isArray(history) || !history.length) return false;
+  const latestTs = Math.max(...history.map(e=>Number(e && e.ts)||0));
+  return latestTs > 0 && Math.abs(dirtyMs - latestTs) <= 5000;
+}
+function backupLocalBeforeRemote(reason){
+  try{
+    localStorage.setItem('pit-local-backup-before-remote', JSON.stringify({
+      saved_at:new Date().toISOString(), reason, data:comparableLocal()
+    }));
+  }catch(e){ console.warn('backup local failed',e); }
 }
 function sameData(a,b){
   try{
@@ -1566,36 +1544,33 @@ async function syncNow(){
 
     const remoteStamp=remote.generated_at||"";
     const lastStamp=localStorage.getItem("pit-last-remote-stamp")||"";
-    const dirty=localStorage.getItem("pit-local-dirty-at")||"";
+    let dirty=localStorage.getItem("pit-local-dirty-at")||"";
     const local=comparableLocal();
-    const ff=(window.__diagFiles&&window.__diagFiles[0])||{};
-    diagSet(
-      "DIAGNOSTICO iPHONE\n"+
-      "archivo: "+(ff.name||"?")+"\n"+
-      "file id: "+id+"\n"+
-      "Drive modified: "+(ff.modifiedTime||"?")+"\n"+
-      "generated_at remoto: "+remoteStamp+"\n"+
-      "lastStamp local: "+lastStamp+"\n"+
-      "dirty: "+(dirty||"NO")+"\n"+
-      "sameData: "+sameData(local,remote)+"\n"+
-      "REMOTE Test 1: "+diagPlan(remote.plans)+"\n"+
-      "LOCAL Test 1: "+diagPlan(local.plans)+"\n"+
-      "archivos PitTyreData encontrados: "+((window.__diagFiles||[]).length)
-    );
 
-    // ADMIN tiene cambios: subir sólo si Drive no cambió mientras tanto.
+    // Migración segura: en versiones anteriores un simple escaneo marcaba ADMIN como "dirty".
+    // Solo se destraba automáticamente cuando el timestamp del dirty coincide con el último escaneo
+    // y no existe una marca explícita de cambio de Plan/Inventario. Se guarda backup antes de aplicar Drive.
+    if(dirty && legacyDirtyIsFromScan(dirty)){
+      backupLocalBeforeRemote('legacy-scan-dirty');
+      localStorage.removeItem('pit-local-dirty-at');
+      dirty="";
+    }
+
+    // ADMIN tiene cambios reales de Plan/Inventario: subir sólo si Drive no cambió mientras tanto.
     if(dirty){
       if(remoteStamp===lastStamp){
         const d=payload();
         await updateFile(id,d);
         localStorage.setItem("pit-last-remote-stamp",d.generated_at);
         localStorage.removeItem("pit-local-dirty-at");
+        localStorage.removeItem("pit-local-dirty-kind");
         status("App → Drive ✔",true);
         return;
       }
       if(sameData(local,remote)){
         localStorage.setItem("pit-last-remote-stamp",remoteStamp);
         localStorage.removeItem("pit-local-dirty-at");
+        localStorage.removeItem("pit-local-dirty-kind");
         status("Sincronizado ✔",true);
         return;
       }
@@ -1609,6 +1584,7 @@ async function syncNow(){
       applyRemote(remote);
       localStorage.setItem("pit-last-remote-stamp",remoteStamp);
       localStorage.removeItem("pit-local-dirty-at");
+      localStorage.removeItem("pit-local-dirty-kind");
       status("Drive → App ✔",true);
       setTimeout(()=>location.reload(),600);
       return;
@@ -1616,6 +1592,7 @@ async function syncNow(){
 
     localStorage.setItem("pit-last-remote-stamp",remoteStamp);
     localStorage.removeItem("pit-local-dirty-at");
+    localStorage.removeItem("pit-local-dirty-kind");
     status("Ya está sincronizado ✔",true);
   }catch(e){
     console.error(e);
