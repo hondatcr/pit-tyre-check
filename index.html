@@ -6,7 +6,8 @@
 <title>Pit Tyre Check</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">setTimeout(ensureDiag,500);
+</script>
 <style>
   :root{
     --bg:#0A0C0F;
@@ -1494,13 +1495,30 @@ const CLIENT_ID="550070179587-7ef0jobb4ok4fm4vuvem92sc9h71anpe.apps.googleuserco
 const SCOPES="https://www.googleapis.com/auth/drive";
 const SYNC_FILE="PitTyreData.json";
 let tokenClient=null, accessToken=null, pendingSync=false, fileId=localStorage.getItem("pit-drive-file-id")||"";
+function ensureDiag(){
+  let d=document.getElementById("iphoneSyncDiag");
+  if(!d){
+    d=document.createElement("div"); d.id="iphoneSyncDiag";
+    d.style.cssText="position:fixed;left:8px;right:8px;top:86px;z-index:99999;background:#111827;color:#e5e7eb;border:2px solid #f59e0b;border-radius:10px;padding:9px;font:11px/1.35 monospace;white-space:pre-wrap;max-height:42vh;overflow:auto";
+    d.textContent="DIAGNOSTICO iPHONE — esperando sincronización...";
+    document.body.appendChild(d);
+  }
+  return d;
+}
+function diagSet(t){try{ensureDiag().textContent=t;}catch(e){}}
+function diagPlan(p){
+  try{
+    const out={}; ["37","85"].forEach(c=>{const pc=(p&&p[c])||{};out[c]=pc["Test 1"]||pc["TEST 1"]||pc["Test1"]||pc["TEST1"]||null;});
+    return JSON.stringify(out);
+  }catch(e){return "ERR "+e.message;}
+}
 function status(m,g){const e=document.getElementById("driveSyncStatus");if(e){e.textContent=m;e.style.color=g?"#86efac":"#9ca3af";}}
 
 
 function getLS(k,f){try{const v=localStorage.getItem(k);return v?JSON.parse(v):f;}catch(e){return f;}}
 function payload(){return {schema:"pit-tyre-check-sync-v1",generated_at:new Date().toISOString(),source:"Pit Tyre Check v2.0 Drive",inventory:{"37":getLS("inventory-37",[]),"85":getLS("inventory-85",[])},plans:{"37":getLS("plan-37",{}),"85":getLS("plan-85",{})},history:getLS("scan-log",[])};}
 async function gf(u,o={}){o.headers=Object.assign({},o.headers||{},{Authorization:"Bearer "+accessToken});const r=await fetch(u,o);if(r.status===401)throw new Error("Sesión Google vencida");return r;}
-async function findFile(){const q=encodeURIComponent("name='"+SYNC_FILE+"' and trashed=false");const r=await gf("https://www.googleapis.com/drive/v3/files?q="+q+"&spaces=drive&fields=files(id,name,modifiedTime,parents,size)&orderBy=modifiedTime desc&pageSize=100");if(!r.ok)throw new Error("No pude buscar el JSON");const j=await r.json();if(j.files&&j.files.length){fileId=j.files[0].id;localStorage.setItem("pit-drive-file-id",fileId);return fileId;}fileId="";localStorage.removeItem("pit-drive-file-id");return "";}
+async function findFile(){const q=encodeURIComponent("name='"+SYNC_FILE+"' and trashed=false");const r=await gf("https://www.googleapis.com/drive/v3/files?q="+q+"&spaces=drive&fields=files(id,name,modifiedTime,parents,size)&orderBy=modifiedTime desc&pageSize=100");if(!r.ok)throw new Error("No pude buscar el JSON");const j=await r.json();window.__diagFiles=j.files||[];if(j.files&&j.files.length){fileId=j.files[0].id;localStorage.setItem("pit-drive-file-id",fileId);return fileId;}fileId="";localStorage.removeItem("pit-drive-file-id");return "";}
 async function createFile(d){const b="pittyre_"+Date.now(),meta=JSON.stringify({name:SYNC_FILE,mimeType:"application/json"}),body="--"+b+"\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"+meta+"\r\n--"+b+"\r\nContent-Type: application/json\r\n\r\n"+JSON.stringify(d,null,2)+"\r\n--"+b+"--";const r=await gf("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",{method:"POST",headers:{"Content-Type":"multipart/related; boundary="+b},body});if(!r.ok)throw new Error("No pude crear el JSON");const j=await r.json();fileId=j.id;localStorage.setItem("pit-drive-file-id",fileId);}
 async function updateFile(id,d){const r=await gf("https://www.googleapis.com/upload/drive/v3/files/"+encodeURIComponent(id)+"?uploadType=media",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(d,null,2)});if(!r.ok)throw new Error("No pude actualizar el JSON");}
 function comparableLocal(){
@@ -1550,6 +1568,20 @@ async function syncNow(){
     const lastStamp=localStorage.getItem("pit-last-remote-stamp")||"";
     const dirty=localStorage.getItem("pit-local-dirty-at")||"";
     const local=comparableLocal();
+    const ff=(window.__diagFiles&&window.__diagFiles[0])||{};
+    diagSet(
+      "DIAGNOSTICO iPHONE\n"+
+      "archivo: "+(ff.name||"?")+"\n"+
+      "file id: "+id+"\n"+
+      "Drive modified: "+(ff.modifiedTime||"?")+"\n"+
+      "generated_at remoto: "+remoteStamp+"\n"+
+      "lastStamp local: "+lastStamp+"\n"+
+      "dirty: "+(dirty||"NO")+"\n"+
+      "sameData: "+sameData(local,remote)+"\n"+
+      "REMOTE Test 1: "+diagPlan(remote.plans)+"\n"+
+      "LOCAL Test 1: "+diagPlan(local.plans)+"\n"+
+      "archivos PitTyreData encontrados: "+((window.__diagFiles||[]).length)
+    );
 
     // ADMIN tiene cambios: subir sólo si Drive no cambió mientras tanto.
     if(dirty){
