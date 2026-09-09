@@ -371,10 +371,6 @@ window.__SEED__ = {"sessions": ["Test 1", "Test 2", "FP1", "FP2", "Q1", "Q2", "R
 // ---------- storage helpers ----------
 async function storeGet(key, shared){
   try{
-    if(window.storage && typeof window.storage.get === 'function'){
-      const r = await window.storage.get(key, !!shared);
-      return r ? JSON.parse(r.value) : null;
-    }
     const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : null;
   }catch(e){
@@ -382,15 +378,10 @@ async function storeGet(key, shared){
     return null;
   }
 }
-async function storeSet(key, value, shared){
+async function storeSet(key, value, shared, markDirty=true){
   try{
-    const json = JSON.stringify(value);
-    if(window.storage && typeof window.storage.set === 'function'){
-      await window.storage.set(key, json, !!shared);
-    } else {
-      localStorage.setItem(key, json);
-    }
-    if(['inventory-37','inventory-85','plan-37','plan-85','scan-log'].includes(key)){
+    localStorage.setItem(key, JSON.stringify(value));
+    if(markDirty && ['inventory-37','inventory-85','plan-37','plan-85'].includes(key)){
       localStorage.setItem('pit-local-dirty-at', new Date().toISOString());
     }
     return true;
@@ -434,10 +425,10 @@ async function loadAll(){
   state.log = log || [];
 
   // persist seed on first run
-  if(!inv37) await storeSet('inventory-37', state.inventory['37'], true);
-  if(!inv85) await storeSet('inventory-85', state.inventory['85'], true);
-  if(!plan37) await storeSet('plan-37', state.plan['37'], true);
-  if(!plan85) await storeSet('plan-85', state.plan['85'], true);
+  if(!inv37) await storeSet('inventory-37', state.inventory['37'], true, false);
+  if(!inv85) await storeSet('inventory-85', state.inventory['85'], true, false);
+  if(!plan37) await storeSet('plan-37', state.plan['37'], true, false);
+  if(!plan85) await storeSet('plan-85', state.plan['85'], true, false);
 }
 
 function setHeaderSub(){
@@ -1397,25 +1388,6 @@ const SCOPES="https://www.googleapis.com/auth/drive";
 const SYNC_FILE="PitTyreData.json";
 let tokenClient=null, accessToken=null, pendingSync=false, fileId=localStorage.getItem("pit-drive-file-id")||"";
 function status(m,g){const e=document.getElementById("driveSyncStatus");if(e){e.textContent=m;e.style.color=g?"#86efac":"#9ca3af";}}
-function saveGoogleToken(resp){
-  accessToken=resp.access_token;
-  const expires=Date.now()+((Number(resp.expires_in)||3500)*1000)-60000;
-  localStorage.setItem("pit-admin-google-token",accessToken);
-  localStorage.setItem("pit-admin-google-exp",String(expires));
-}
-function loadGoogleToken(){
-  const exp=Number(localStorage.getItem("pit-admin-google-exp")||0);
-  const tok=localStorage.getItem("pit-admin-google-token")||"";
-  if(tok && exp>Date.now()){ accessToken=tok; return true; }
-  localStorage.removeItem("pit-admin-google-token");
-  localStorage.removeItem("pit-admin-google-exp");
-  return false;
-}
-function clearGoogleToken(){
-  accessToken=null;
-  localStorage.removeItem("pit-admin-google-token");
-  localStorage.removeItem("pit-admin-google-exp");
-}
 
 
 function getLS(k,f){try{const v=localStorage.getItem(k);return v?JSON.parse(v):f;}catch(e){return f;}}
@@ -1471,6 +1443,26 @@ async function syncNow(){
     const lastStamp=localStorage.getItem("pit-last-remote-stamp")||"";
     const dirty=localStorage.getItem("pit-local-dirty-at")||"";
     const local=comparableLocal();
+
+    // Recuperación única para iPhone: Drive es la fuente maestra en esta primera sync.
+    // Se guarda una copia local antes de reemplazar nada.
+    if(localStorage.getItem("pit-ios-recovery-v1-done")!=="1"){
+      try{
+        localStorage.setItem("pit-ios-recovery-backup-v1", JSON.stringify({
+          saved_at:new Date().toISOString(),
+          lastStamp,
+          dirty,
+          data:local
+        }));
+      }catch(e){}
+      applyRemote(remote);
+      localStorage.setItem("pit-last-remote-stamp",remoteStamp);
+      localStorage.removeItem("pit-local-dirty-at");
+      localStorage.setItem("pit-ios-recovery-v1-done","1");
+      status("Drive → App ✔",true);
+      setTimeout(()=>location.reload(),300);
+      return;
+    }
 
     // ADMIN tiene cambios: subir sólo si Drive no cambió mientras tanto.
     if(dirty){
@@ -1529,15 +1521,14 @@ function initGoogle(){
         status("Google: "+resp.error);
         return;
       }
-      saveGoogleToken(resp);
-      pendingSync=false;
+      accessToken = resp.access_token;
       status("Google conectado ✔", true);
-      await syncNow();
+      if(pendingSync){
+        pendingSync=false;
+        await syncNow();
+      }
     }
   });
-  if(loadGoogleToken()){
-    status("Google listo ✔", true);
-  }
 }
 
 document.addEventListener("DOMContentLoaded", ()=>{
@@ -1548,12 +1539,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   syncBtn.onclick = async ()=>{
     if(accessToken){
-      try{
-        await syncNow();
-      }catch(e){
-        if(String(e&&e.message||e).includes("Sesión Google vencida")) clearGoogleToken();
-        throw e;
-      }
+      await syncNow();
       return;
     }
     if(!tokenClient){
@@ -1562,12 +1548,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     }
     pendingSync=true;
     status("Conectando con Google...");
-    try{
-      tokenClient.requestAccessToken({prompt:"", login_hint:"hondatcr@gmail.com"});
-    }catch(e){
-      pendingSync=false;
-      status("Google: no se pudo abrir autorización");
-    }
+    tokenClient.requestAccessToken({prompt:"", login_hint:"hondatcr@gmail.com"});
   };
   initGoogle();
 });
