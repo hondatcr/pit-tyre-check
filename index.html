@@ -1132,7 +1132,30 @@ function renderInventoryTab(){
 }
 
 // ---------- LOAD / REGISTRATION TAB ----------
-let loadSel = { car:'37', condition:'NEW', code:'' };
+let loadSel = { car:'37', condition:'NEW', code:'', group:null, pos:null };
+
+// Busca el primer casillero libre (GRUPO 1-10 x POSICIÓN 1-16) recorriendo de arriba hacia abajo:
+// primero todas las posiciones del grupo 1, después el grupo 2, etc.
+function getFirstEmptySlot(car){
+  const used = new Set();
+  (state.inventory[car] || []).forEach(t=>{
+    const m = String(t.own_code || '').trim().match(new RegExp('^' + car + '-(\\d+)-(\\d+)$', 'i'));
+    if(m) used.add(m[1] + '-' + m[2]);
+  });
+  for(let g=1; g<=10; g++){
+    for(let p=1; p<=16; p++){
+      if(!used.has(g + '-' + p)) return { group:g, pos:p };
+    }
+  }
+  return { group:10, pos:16 }; // los 160 casilleros están ocupados; se deja el último como tope
+}
+function ensureLoadSlotDefaults(){
+  if(loadSel.group == null || loadSel.pos == null){
+    const s = getFirstEmptySlot(loadSel.car);
+    loadSel.group = s.group;
+    loadSel.pos = s.pos;
+  }
+}
 
 function getNextOwnCode(car){
   const tyres = state.inventory[car] || [];
@@ -1163,6 +1186,7 @@ function findTyreExactFactoryCode(car, code){
 function renderLoadPreview(){
   const host = document.getElementById('loadPreview');
   if(!host) return;
+  ensureLoadSlotDefaults();
   const code = (document.getElementById('loadCode')?.value || '').trim();
   loadSel.code = code;
   if(!code){
@@ -1197,17 +1221,26 @@ function renderLoadPreview(){
           <div class="detail">Este código ya pertenece a <b>${existing.own_code}</b>. No se creará un duplicado.</div>
         </div>`;
     }else{
-      const next = getNextOwnCode(loadSel.car);
-      host.innerHTML = `
-        <div class="result ok" style="margin:0;">
-          <div class="verdict" style="font-size:22px;">NUEVO NEUMÁTICO</div>
-          <div class="detail">Al guardar se asignará automáticamente:</div>
-          <div class="stat-grid">
-            <div class="stat"><div class="val">${code}</div><div class="lbl">Código barras</div></div>
-            <div class="stat"><div class="val">${next}</div><div class="lbl">Nuevo código propio</div></div>
-            <div class="stat"><div class="val">${getNextSet(loadSel.car)}</div><div class="lbl">Set</div></div>
-          </div>
-        </div>`;
+      const nextOwn = `${loadSel.car}-${loadSel.group}-${loadSel.pos}`;
+      const slotTaken = findTyreByOwnCode(loadSel.car, nextOwn);
+      if(slotTaken){
+        host.innerHTML = `
+          <div class="result bad" style="margin:0;">
+            <div class="verdict" style="font-size:22px;">❌ CASILLERO OCUPADO</div>
+            <div class="detail">Grupo ${loadSel.group} · Posición ${loadSel.pos} (${nextOwn}) ya tiene cargado el código de barras <b>${slotTaken.code}</b>. Elegí otro grupo/posición.</div>
+          </div>`;
+      }else{
+        host.innerHTML = `
+          <div class="result ok" style="margin:0;">
+            <div class="verdict" style="font-size:22px;">NUEVO NEUMÁTICO</div>
+            <div class="detail">Al guardar se asignará:</div>
+            <div class="stat-grid">
+              <div class="stat"><div class="val">${code}</div><div class="lbl">Código barras</div></div>
+              <div class="stat"><div class="val">${nextOwn}</div><div class="lbl">Cód. propio (Grupo ${loadSel.group} · Pos ${loadSel.pos})</div></div>
+              <div class="stat"><div class="val">${getNextSet(loadSel.car)}</div><div class="lbl">Set</div></div>
+            </div>
+          </div>`;
+      }
     }
   }
 }
@@ -1236,10 +1269,19 @@ async function saveLoadedTyre(){
     return;
   }
 
+  ensureLoadSlotDefaults();
+  const ownCode = `${loadSel.car}-${loadSel.group}-${loadSel.pos}`;
+  const slotTaken = findTyreByOwnCode(loadSel.car, ownCode);
+  if(slotTaken){
+    toast(`Casillero ${ownCode} ya ocupado (${slotTaken.code}). Elegí otro.`);
+    renderLoadPreview();
+    return;
+  }
+
   const newTyre = {
     set: getNextSet(loadSel.car),
     code: code,
-    own_code: getNextOwnCode(loadSel.car),
+    own_code: ownCode,
     type: 'SLICK',
     condition: 'NEW',
     side: '',
@@ -1254,7 +1296,11 @@ async function saveLoadedTyre(){
   }
   toast(`Nuevo ${newTyre.own_code} guardado ✔`);
   input.value=''; loadSel.code='';
-  renderLoadPreview();
+  // Avanza automáticamente al próximo casillero vacío (de arriba hacia abajo) para el siguiente escaneo.
+  const next = getFirstEmptySlot(loadSel.car);
+  loadSel.group = next.group;
+  loadSel.pos = next.pos;
+  renderLoadTab();
 }
 
 function openLoadScanner(){
@@ -1314,9 +1360,11 @@ function openLoadScanner(){
 }
 
 function renderLoadTab(){
+  ensureLoadSlotDefaults();
   const wrap=document.createElement('div');
   const card=document.createElement('div');
   card.className='card';
+  const isNew = loadSel.condition==='NEW';
   card.innerHTML=`
     <h2>Cargar neumático al comenzar el fin de semana</h2>
     <div class="row" style="margin-bottom:12px;">
@@ -1332,6 +1380,24 @@ function renderLoadTab(){
         </select>
       </div>
     </div>
+    <div class="row" style="margin-bottom:12px;">
+      <div class="field">
+        <label>Grupo (1-10)</label>
+        <select id="loadGroup" ${isNew?'':'disabled'}>
+          ${Array.from({length:10},(_,i)=>i+1).map(g=>`<option value="${g}" ${g===loadSel.group?'selected':''}>${g}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label>Posición (1-16)</label>
+        <select id="loadPos" ${isNew?'':'disabled'}>
+          ${Array.from({length:16},(_,i)=>i+1).map(p=>`<option value="${p}" ${p===loadSel.pos?'selected':''}>${p}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    ${isNew
+      ? `<div class="detail" style="color:var(--text-dim);font-size:12px;margin:-4px 0 12px;">Se completa solo con el primer casillero vacío (de arriba hacia abajo). Podés elegir otro manualmente.</div>`
+      : `<div class="detail" style="color:var(--text-dim);font-size:12px;margin:-4px 0 12px;">Las gomas usadas conservan su código propio existente; el grupo/posición no aplica.</div>`
+    }
     <label>Código de barras</label>
     <input id="loadCode" class="mono" type="text" inputmode="numeric" value="${loadSel.code || ''}" placeholder="Escaneá o escribí el código">
     <button class="btn secondary" id="loadScanBtn" style="margin-top:10px;">📷 Escanear código</button>
@@ -1351,8 +1417,10 @@ function renderLoadTab(){
 
   document.getElementById('main').innerHTML='';
   document.getElementById('main').appendChild(wrap);
-  document.getElementById('loadCar').onchange=e=>{ loadSel.car=e.target.value; renderLoadTab(); };
+  document.getElementById('loadCar').onchange=e=>{ loadSel.car=e.target.value; loadSel.group=null; loadSel.pos=null; renderLoadTab(); };
   document.getElementById('loadCondition').onchange=e=>{ loadSel.condition=e.target.value; renderLoadTab(); };
+  document.getElementById('loadGroup').onchange=e=>{ loadSel.group=parseInt(e.target.value,10); renderLoadPreview(); };
+  document.getElementById('loadPos').onchange=e=>{ loadSel.pos=parseInt(e.target.value,10); renderLoadPreview(); };
   document.getElementById('loadCode').oninput=renderLoadPreview;
   document.getElementById('loadCode').addEventListener('keydown',e=>{ if(e.key==='Enter') saveLoadedTyre(); });
   document.getElementById('loadScanBtn').onclick=openLoadScanner;
