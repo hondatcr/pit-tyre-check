@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- Lector de códigos de barra universal (fallback para Safari/iOS, que no soporta BarcodeDetector) -->
+<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 <style>
   :root{
     --bg:#0A0C0F;
@@ -610,7 +612,81 @@ async function processScan(code){
 
 // ---------- BARCODE SCANNER ----------
 let scannerStream = null;
-let scannerLoopId = null;
+let scannerStopFn = null;
+
+// ---------- Lector universal de códigos de barra ----------
+// Usa BarcodeDetector nativo cuando existe (Chrome/Android, rápido).
+// Si no existe (Safari/iOS, WebViews viejos), cae a ZXing (funciona en cualquier navegador con cámara).
+let __zxingReaderPromise = null;
+function getZXingReader(){
+  if(!__zxingReaderPromise){
+    __zxingReaderPromise = new Promise((resolve)=>{
+      const ready = ()=> window.ZXing && window.ZXing.BrowserMultiFormatReader;
+      if(ready()){ resolve(new window.ZXing.BrowserMultiFormatReader()); return; }
+      let tries = 0;
+      const iv = setInterval(()=>{
+        tries++;
+        if(ready()){
+          clearInterval(iv);
+          resolve(new window.ZXing.BrowserMultiFormatReader());
+        } else if(tries > 50){ // ~5s esperando que cargue la librería
+          clearInterval(iv);
+          resolve(null);
+        }
+      }, 100);
+    });
+  }
+  return __zxingReaderPromise;
+}
+
+// video: <video> ya con el stream asignado. stream: MediaStream activo.
+// hintEl: elemento donde mostrar mensajes de estado. onDetect(code): callback al leer un código.
+// Devuelve una función stop() para cortar el escaneo.
+async function startBarcodeLoop({video, stream, hintEl, onDetect}){
+  let stopped = false;
+  let raf = null;
+  let zxingControls = null;
+  const stop = ()=>{
+    stopped = true;
+    if(raf) cancelAnimationFrame(raf);
+    if(zxingControls){ try{ zxingControls.stop(); }catch(e){} }
+  };
+
+  if('BarcodeDetector' in window){
+    try{
+      const formats = await window.BarcodeDetector.getSupportedFormats();
+      const detector = new window.BarcodeDetector({ formats });
+      const loop = async ()=>{
+        if(stopped) return;
+        try{
+          const codes = await detector.detect(video);
+          if(codes && codes.length){ onDetect(codes[0].rawValue); return; }
+        }catch(e){ /* ignorar errores por frame */ }
+        raf = requestAnimationFrame(loop);
+      };
+      raf = requestAnimationFrame(loop);
+      return stop;
+    }catch(e){
+      // sigue abajo con el fallback ZXing
+    }
+  }
+
+  const reader = await getZXingReader();
+  if(stopped) return stop;
+  if(!reader){
+    if(hintEl) hintEl.textContent = 'Lectura automática no disponible. Escribí el código.';
+    return stop;
+  }
+  try{
+    zxingControls = await reader.decodeFromStream(stream, video, (result)=>{
+      if(stopped || !result) return;
+      onDetect(result.getText());
+    });
+  }catch(e){
+    if(hintEl) hintEl.textContent = 'Lectura automática no disponible. Escribí el código.';
+  }
+  return stop;
+}
 
 async function openScanner(){
   const overlay = document.createElement('div');
@@ -651,35 +727,20 @@ async function openScanner(){
     return;
   }
 
-  if('BarcodeDetector' in window){
-    try{
-      const formats = await window.BarcodeDetector.getSupportedFormats();
-      const detector = new window.BarcodeDetector({ formats });
-      const loop = async ()=>{
-        if(!document.getElementById('scanOverlay')) return;
-        try{
-          const codes = await detector.detect(video);
-          if(codes && codes.length){
-            const value = codes[0].rawValue;
-            closeScanner();
-            await processScan(value);
-            return;
-          }
-        }catch(e){ /* ignore per-frame errors */ }
-        scannerLoopId = requestAnimationFrame(loop);
-      };
-      scannerLoopId = requestAnimationFrame(loop);
-    }catch(e){
-      document.getElementById('scanHint').textContent = 'Escaneo automático no disponible en este navegador. Escribí el código.';
+  scannerStopFn = await startBarcodeLoop({
+    video,
+    stream: scannerStream,
+    hintEl: document.getElementById('scanHint'),
+    onDetect: async (value)=>{
+      if(!document.getElementById('scanOverlay')) return;
+      closeScanner();
+      await processScan(value);
     }
-  }else{
-    document.getElementById('scanHint').textContent = 'Este navegador no soporta lectura automática. Escribí el código.';
-  }
+  });
 }
 
 function closeScanner(){
-  if(scannerLoopId) cancelAnimationFrame(scannerLoopId);
-  scannerLoopId = null;
+  if(scannerStopFn){ scannerStopFn(); scannerStopFn = null; }
   if(scannerStream){
     scannerStream.getTracks().forEach(t=>t.stop());
     scannerStream = null;
@@ -1214,9 +1275,9 @@ function openLoadScanner(){
     </div>`;
   document.body.appendChild(overlay);
 
-  let stream = null, loopId = null;
+  let stream = null, stopFn = null;
   const close = ()=>{
-    if(loopId) cancelAnimationFrame(loopId);
+    if(stopFn){ stopFn(); stopFn = null; }
     if(stream) stream.getTracks().forEach(t=>t.stop());
     document.getElementById('loadScanOverlay')?.remove();
   };
@@ -1240,25 +1301,15 @@ function openLoadScanner(){
       document.getElementById('loadScanHint').textContent='No se pudo acceder a la cámara. Escribí el código manualmente.';
       return;
     }
-    if('BarcodeDetector' in window){
-      try{
-        const formats=await window.BarcodeDetector.getSupportedFormats();
-        const detector=new window.BarcodeDetector({formats});
-        const loop=async()=>{
-          if(!document.getElementById('loadScanOverlay')) return;
-          try{
-            const codes=await detector.detect(video);
-            if(codes?.length){ accept(codes[0].rawValue); return; }
-          }catch(e){}
-          loopId=requestAnimationFrame(loop);
-        };
-        loopId=requestAnimationFrame(loop);
-      }catch(e){
-        document.getElementById('loadScanHint').textContent='Lectura automática no disponible. Escribí el código.';
+    stopFn = await startBarcodeLoop({
+      video,
+      stream,
+      hintEl: document.getElementById('loadScanHint'),
+      onDetect: (value)=>{
+        if(!document.getElementById('loadScanOverlay')) return;
+        accept(value);
       }
-    }else{
-      document.getElementById('loadScanHint').textContent='Este navegador no soporta lectura automática. Escribí el código.';
-    }
+    });
   })();
 }
 
@@ -1388,6 +1439,9 @@ const SCOPES="https://www.googleapis.com/auth/drive";
 const SYNC_FILE="PitTyreData.json";
 let tokenClient=null, accessToken=null, pendingSync=false, fileId=localStorage.getItem("pit-drive-file-id")||"";
 function status(m,g){const e=document.getElementById("driveSyncStatus");if(e){e.textContent=m;e.style.color=g?"#86efac":"#9ca3af";}}
+// En mobile el panel de status queda oculto (solo se ve el ícono 🔄), así que además
+// mostramos siempre el resultado final con el toast de la app para que nunca quede invisible.
+function statusToast(m){ try{ if(typeof toast==='function') toast(m); }catch(e){} }
 
 
 function getLS(k,f){try{const v=localStorage.getItem(k);return v?JSON.parse(v):f;}catch(e){return f;}}
@@ -1480,7 +1534,27 @@ async function syncNow(){
         status("Sincronizado ✔",true);
         return;
       }
-      status("⚠ CONFLICTO: cambiaron App y Excel. No se pisó nada.");
+      // Conflicto real: hay cambios locales sin subir Y el Excel cambió mientras tanto.
+      // Antes esto quedaba trabado en silencio (el texto de estado está oculto en mobile).
+      // Ahora se resuelve al toque, eligiendo qué versión gana.
+      const useDrive = confirm(
+        "⚠ Hay cambios en el teléfono y también cambios nuevos en el Excel de Drive.\n\n" +
+        "Aceptar = usar el Excel de Drive (se pierden los cambios hechos en el teléfono)\n" +
+        "Cancelar = subir los cambios del teléfono (se pierde lo nuevo del Excel)"
+      );
+      if(useDrive){
+        applyRemote(remote);
+        localStorage.setItem("pit-last-remote-stamp",remoteStamp);
+        localStorage.removeItem("pit-local-dirty-at");
+        status("Drive → App ✔ (conflicto resuelto)",true);
+        setTimeout(()=>location.reload(),300);
+      }else{
+        const d=payload();
+        await updateFile(id,d);
+        localStorage.setItem("pit-last-remote-stamp",d.generated_at);
+        localStorage.removeItem("pit-local-dirty-at");
+        status("App → Drive ✔ (conflicto resuelto)",true);
+      }
       return;
     }
 
@@ -1503,6 +1577,8 @@ async function syncNow(){
     status("ERROR: "+e.message);
   }finally{
     btn.disabled=false;
+    const finalMsg = document.getElementById("driveSyncStatus")?.textContent;
+    if(finalMsg) statusToast(finalMsg);
   }
 }
 function initGoogle(){
