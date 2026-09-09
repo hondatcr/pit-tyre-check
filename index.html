@@ -371,7 +371,10 @@ window.__SEED__ = {"sessions": ["Test 1", "Test 2", "FP1", "FP2", "Q1", "Q2", "R
 // ---------- storage helpers ----------
 async function storeGet(key, shared){
   try{
-    // Unificado: ADMIN y la sincronizacion con Drive usan el mismo almacenamiento.
+    if(window.storage && typeof window.storage.get === 'function'){
+      const r = await window.storage.get(key, !!shared);
+      return r ? JSON.parse(r.value) : null;
+    }
     const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : null;
   }catch(e){
@@ -382,8 +385,11 @@ async function storeGet(key, shared){
 async function storeSet(key, value, shared){
   try{
     const json = JSON.stringify(value);
-    // Unificado: evita que iPhone lea desde un storage distinto al que actualiza Drive.
-    localStorage.setItem(key, json);
+    if(window.storage && typeof window.storage.set === 'function'){
+      await window.storage.set(key, json, !!shared);
+    } else {
+      localStorage.setItem(key, json);
+    }
     if(['inventory-37','inventory-85','plan-37','plan-85','scan-log'].includes(key)){
       localStorage.setItem('pit-local-dirty-at', new Date().toISOString());
     }
@@ -1391,6 +1397,25 @@ const SCOPES="https://www.googleapis.com/auth/drive";
 const SYNC_FILE="PitTyreData.json";
 let tokenClient=null, accessToken=null, pendingSync=false, fileId=localStorage.getItem("pit-drive-file-id")||"";
 function status(m,g){const e=document.getElementById("driveSyncStatus");if(e){e.textContent=m;e.style.color=g?"#86efac":"#9ca3af";}}
+function saveGoogleToken(resp){
+  accessToken=resp.access_token;
+  const expires=Date.now()+((Number(resp.expires_in)||3500)*1000)-60000;
+  localStorage.setItem("pit-admin-google-token",accessToken);
+  localStorage.setItem("pit-admin-google-exp",String(expires));
+}
+function loadGoogleToken(){
+  const exp=Number(localStorage.getItem("pit-admin-google-exp")||0);
+  const tok=localStorage.getItem("pit-admin-google-token")||"";
+  if(tok && exp>Date.now()){ accessToken=tok; return true; }
+  localStorage.removeItem("pit-admin-google-token");
+  localStorage.removeItem("pit-admin-google-exp");
+  return false;
+}
+function clearGoogleToken(){
+  accessToken=null;
+  localStorage.removeItem("pit-admin-google-token");
+  localStorage.removeItem("pit-admin-google-exp");
+}
 
 
 function getLS(k,f){try{const v=localStorage.getItem(k);return v?JSON.parse(v):f;}catch(e){return f;}}
@@ -1504,14 +1529,15 @@ function initGoogle(){
         status("Google: "+resp.error);
         return;
       }
-      accessToken = resp.access_token;
+      saveGoogleToken(resp);
+      pendingSync=false;
       status("Google conectado ✔", true);
-      if(pendingSync){
-        pendingSync=false;
-        await syncNow();
-      }
+      await syncNow();
     }
   });
+  if(loadGoogleToken()){
+    status("Google listo ✔", true);
+  }
 }
 
 document.addEventListener("DOMContentLoaded", ()=>{
@@ -1522,7 +1548,12 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   syncBtn.onclick = async ()=>{
     if(accessToken){
-      await syncNow();
+      try{
+        await syncNow();
+      }catch(e){
+        if(String(e&&e.message||e).includes("Sesión Google vencida")) clearGoogleToken();
+        throw e;
+      }
       return;
     }
     if(!tokenClient){
@@ -1531,7 +1562,12 @@ document.addEventListener("DOMContentLoaded", ()=>{
     }
     pendingSync=true;
     status("Conectando con Google...");
-    tokenClient.requestAccessToken({prompt:"", login_hint:"hondatcr@gmail.com"});
+    try{
+      tokenClient.requestAccessToken({prompt:"", login_hint:"hondatcr@gmail.com"});
+    }catch(e){
+      pendingSync=false;
+      status("Google: no se pudo abrir autorización");
+    }
   };
   initGoogle();
 });
