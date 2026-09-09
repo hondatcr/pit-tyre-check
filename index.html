@@ -1134,17 +1134,20 @@ function renderInventoryTab(){
 // ---------- LOAD / REGISTRATION TAB ----------
 let loadSel = { car:'37', condition:'NEW', code:'', group:null, pos:null };
 
-// Busca el primer casillero libre (GRUPO 1-10 x POSICIÓN 1-16) recorriendo de arriba hacia abajo:
-// primero todas las posiciones del grupo 1, después el grupo 2, etc.
+// Busca el primer casillero ASIGNABLE (GRUPO 1-10 x POSICIÓN 1-16) recorriendo de arriba hacia abajo.
+// "Asignable" = no tiene ningún neumático con ese código propio todavía, O tiene uno pero sin
+// código de barras cargado (una etiqueta ya puesta esperando el escaneo — no es un conflicto real).
+// Solo se considera "ocupado" cuando ese código propio ya tiene un código de barras real.
 function getFirstEmptySlot(car){
-  const used = new Set();
+  const occupied = new Set();
   (state.inventory[car] || []).forEach(t=>{
+    if(!String(t.code || '').trim()) return; // sin código de barras: no bloquea, es asignable
     const m = String(t.own_code || '').trim().match(new RegExp('^' + car + '-(\\d+)-(\\d+)$', 'i'));
-    if(m) used.add(m[1] + '-' + m[2]);
+    if(m) occupied.add(m[1] + '-' + m[2]);
   });
   for(let g=1; g<=10; g++){
     for(let p=1; p<=16; p++){
-      if(!used.has(g + '-' + p)) return { group:g, pos:p };
+      if(!occupied.has(g + '-' + p)) return { group:g, pos:p };
     }
   }
   return { group:10, pos:16 }; // los 160 casilleros están ocupados; se deja el último como tope
@@ -1232,15 +1235,17 @@ function renderLoadPreview(){
         </div>`;
     }else{
       const nextOwn = `${loadSel.car}-${loadSel.group}-${loadSel.pos}`;
-      const slotTaken = findTyreByOwnCode(loadSel.car, nextOwn);
-      if(slotTaken){
+      const matched = findTyreByOwnCode(loadSel.car, nextOwn);
+      if(matched && String(matched.code || '').trim()){
         host.innerHTML = `
           <div class="result bad" style="margin:0;">
             <div class="verdict" style="font-size:22px;">❌ CASILLERO OCUPADO</div>
-            <div class="detail">Grupo ${loadSel.group} · Posición ${loadSel.pos} (${nextOwn}) ya tiene cargado el código de barras <b>${slotTaken.code}</b>. Elegí otro grupo/posición.</div>
+            <div class="detail">Grupo ${loadSel.group} · Posición ${loadSel.pos} (${nextOwn}) ya tiene cargado el código de barras <b>${matched.code}</b>. Elegí otro grupo/posición.</div>
           </div>`;
       }else{
-        const target = getFirstEmptyCodeTyre(loadSel.car);
+        // Si ya existe una fila con ese código propio pero sin código de barras, se completa esa
+        // misma fila. Si no existe ninguna, se completa la primera fila vacía por Set (o se crea una nueva).
+        const target = matched || getFirstEmptyCodeTyre(loadSel.car);
         if(target){
           host.innerHTML = `
             <div class="result ok" style="margin:0;">
@@ -1295,16 +1300,18 @@ async function saveLoadedTyre(){
 
   ensureLoadSlotDefaults();
   const ownCode = `${loadSel.car}-${loadSel.group}-${loadSel.pos}`;
-  const slotTaken = findTyreByOwnCode(loadSel.car, ownCode);
-  if(slotTaken){
-    toast(`Casillero ${ownCode} ya ocupado (${slotTaken.code}). Elegí otro.`);
+  const matched = findTyreByOwnCode(loadSel.car, ownCode);
+  if(matched && String(matched.code || '').trim()){
+    toast(`Casillero ${ownCode} ya ocupado (${matched.code}). Elegí otro.`);
     renderLoadPreview();
     return;
   }
 
-  // Prioridad: completar la primera fila YA EXISTENTE (Set/Tipo/Lado ya asignados) que
-  // todavía no tenga código de barras, en vez de crear una fila nueva al final.
-  const target = getFirstEmptyCodeTyre(loadSel.car);
+  // Prioridad 1: si ya existe una fila con ese código propio pero sin código de barras
+  // (una etiqueta ya puesta esperando el escaneo), se completa esa misma fila.
+  // Prioridad 2: si no, se completa la primera fila existente sin código, ordenada por Set.
+  // Prioridad 3: si no queda ninguna fila vacía, se crea un Set nuevo.
+  const target = matched || getFirstEmptyCodeTyre(loadSel.car);
   let savedTyre, revert;
   if(target){
     const prevCode = target.code, prevOwn = target.own_code;
