@@ -371,10 +371,7 @@ window.__SEED__ = {"sessions": ["Test 1", "Test 2", "FP1", "FP2", "Q1", "Q2", "R
 // ---------- storage helpers ----------
 async function storeGet(key, shared){
   try{
-    if(window.storage && typeof window.storage.get === 'function'){
-      const r = await window.storage.get(key, !!shared);
-      return r ? JSON.parse(r.value) : null;
-    }
+    // Unificado: ADMIN y la sincronizacion con Drive usan el mismo almacenamiento.
     const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : null;
   }catch(e){
@@ -385,11 +382,8 @@ async function storeGet(key, shared){
 async function storeSet(key, value, shared){
   try{
     const json = JSON.stringify(value);
-    if(window.storage && typeof window.storage.set === 'function'){
-      await window.storage.set(key, json, !!shared);
-    } else {
-      localStorage.setItem(key, json);
-    }
+    // Unificado: evita que iPhone lea desde un storage distinto al que actualiza Drive.
+    localStorage.setItem(key, json);
     if(['inventory-37','inventory-85','plan-37','plan-85','scan-log'].includes(key)){
       localStorage.setItem('pit-local-dirty-at', new Date().toISOString());
     }
