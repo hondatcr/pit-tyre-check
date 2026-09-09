@@ -1157,6 +1157,16 @@ function ensureLoadSlotDefaults(){
   }
 }
 
+// Busca, entre los neumáticos YA CARGADOS en el inventario (con Set/Tipo/Lado asignados),
+// el primero que todavía no tiene código de barras — ordenado por Set ascendente.
+// Esa es la fila "vacía" que hay que completar, en vez de crear una fila nueva al final.
+function getFirstEmptyCodeTyre(car){
+  const tyres = (state.inventory[car] || []).filter(t => !String(t.code || '').trim());
+  if(!tyres.length) return null;
+  tyres.sort((a,b) => (Number(a.set) || 0) - (Number(b.set) || 0));
+  return tyres[0];
+}
+
 function getNextOwnCode(car){
   const tyres = state.inventory[car] || [];
   let bestGroup = 1;
@@ -1230,16 +1240,30 @@ function renderLoadPreview(){
             <div class="detail">Grupo ${loadSel.group} · Posición ${loadSel.pos} (${nextOwn}) ya tiene cargado el código de barras <b>${slotTaken.code}</b>. Elegí otro grupo/posición.</div>
           </div>`;
       }else{
-        host.innerHTML = `
-          <div class="result ok" style="margin:0;">
-            <div class="verdict" style="font-size:22px;">NUEVO NEUMÁTICO</div>
-            <div class="detail">Al guardar se asignará:</div>
-            <div class="stat-grid">
-              <div class="stat"><div class="val">${code}</div><div class="lbl">Código barras</div></div>
-              <div class="stat"><div class="val">${nextOwn}</div><div class="lbl">Cód. propio (Grupo ${loadSel.group} · Pos ${loadSel.pos})</div></div>
-              <div class="stat"><div class="val">${getNextSet(loadSel.car)}</div><div class="lbl">Set</div></div>
-            </div>
-          </div>`;
+        const target = getFirstEmptyCodeTyre(loadSel.car);
+        if(target){
+          host.innerHTML = `
+            <div class="result ok" style="margin:0;">
+              <div class="verdict" style="font-size:22px;">COMPLETA SET ${target.set}</div>
+              <div class="detail">Se va a completar el neumático ya cargado en el Set ${target.set} (${target.type}${target.side ? ' · ' + target.side : ''}), que todavía no tenía código de barras.</div>
+              <div class="stat-grid">
+                <div class="stat"><div class="val">${code}</div><div class="lbl">Código barras</div></div>
+                <div class="stat"><div class="val">${nextOwn}</div><div class="lbl">Cód. propio (Grupo ${loadSel.group} · Pos ${loadSel.pos})</div></div>
+                <div class="stat"><div class="val">${target.set}</div><div class="lbl">Set (existente)</div></div>
+              </div>
+            </div>`;
+        }else{
+          host.innerHTML = `
+            <div class="result ok" style="margin:0;">
+              <div class="verdict" style="font-size:22px;">NUEVO SET</div>
+              <div class="detail">No quedan Sets cargados sin código para el Auto #${loadSel.car}, así que se creará un Set nuevo:</div>
+              <div class="stat-grid">
+                <div class="stat"><div class="val">${code}</div><div class="lbl">Código barras</div></div>
+                <div class="stat"><div class="val">${nextOwn}</div><div class="lbl">Cód. propio (Grupo ${loadSel.group} · Pos ${loadSel.pos})</div></div>
+                <div class="stat"><div class="val">${getNextSet(loadSel.car)}</div><div class="lbl">Set (nuevo)</div></div>
+              </div>
+            </div>`;
+        }
       }
     }
   }
@@ -1278,23 +1302,38 @@ async function saveLoadedTyre(){
     return;
   }
 
-  const newTyre = {
-    set: getNextSet(loadSel.car),
-    code: code,
-    own_code: ownCode,
-    type: 'SLICK',
-    condition: 'NEW',
-    side: '',
-    pre_race_bar: 0
-  };
-  state.inventory[loadSel.car].push(newTyre);
+  // Prioridad: completar la primera fila YA EXISTENTE (Set/Tipo/Lado ya asignados) que
+  // todavía no tenga código de barras, en vez de crear una fila nueva al final.
+  const target = getFirstEmptyCodeTyre(loadSel.car);
+  let savedTyre, revert;
+  if(target){
+    const prevCode = target.code, prevOwn = target.own_code;
+    target.code = code;
+    target.own_code = ownCode;
+    savedTyre = target;
+    revert = ()=>{ target.code = prevCode; target.own_code = prevOwn; };
+  }else{
+    const newTyre = {
+      set: getNextSet(loadSel.car),
+      code: code,
+      own_code: ownCode,
+      type: 'SLICK',
+      condition: 'NEW',
+      side: '',
+      pre_race_bar: 0
+    };
+    state.inventory[loadSel.car].push(newTyre);
+    savedTyre = newTyre;
+    revert = ()=>{ state.inventory[loadSel.car].pop(); };
+  }
+
   const ok = await storeSet('inventory-' + loadSel.car, state.inventory[loadSel.car], true);
   if(!ok){
-    state.inventory[loadSel.car].pop();
+    revert();
     toast('Error al guardar el neumático');
     return;
   }
-  toast(`Nuevo ${newTyre.own_code} guardado ✔`);
+  toast(target ? `Set ${savedTyre.set} completado: ${savedTyre.own_code} ✔` : `Nuevo Set ${savedTyre.set} guardado: ${savedTyre.own_code} ✔`);
   input.value=''; loadSel.code='';
   // Avanza automáticamente al próximo casillero vacío (de arriba hacia abajo) para el siguiente escaneo.
   const next = getFirstEmptySlot(loadSel.car);
